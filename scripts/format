@@ -1,0 +1,10 @@
+#!/bin/bash -e
+
+export PREFIX="poetry run"
+export SOURCE_FILES="fastapi_auth"
+
+set -x
+
+${PREFIX} autoflake --remove-all-unused-imports --in-place --recursive $SOURCE_FILES --exclude=__init__.py
+${PREFIX} isort $SOURCE_FILES
+${PREFIX} black --target-version=py38 $SOURCE_FILES
