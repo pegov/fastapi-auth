@@ -18,7 +18,7 @@ def get_router():
     @router.get("/password", name="auth:password_status")
     async def password_status(*, user: User = Depends(get_authenticated_user)):
         service = PasswordService(user)
-        return service.password_status()
+        return await service.password_status()
 
     @router.post("/password", name="auth:password_set")
     async def password_set(
