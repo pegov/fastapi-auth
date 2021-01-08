@@ -137,6 +137,11 @@ class UsersConfirmMixin(Base):
         return await self._database.confirm_email(token_hash)
 
 
+class UsersUsernameMixin(Base):
+    async def change_username(self, id: int, username: str) -> None:
+        await self._database.update(id, {"username": username})
+
+
 class UsersPasswordMixin(Base):
     async def get_password_status(self, id: int) -> str:
         pass
@@ -212,6 +217,7 @@ class UsersRepo(
     UsersCRUDMixin,
     UsersConfirmMixin,
     UsersPasswordMixin,
+    UsersUsernameMixin,
     UsersProtectionMixin,
     UsersManagementMixin,
 ):

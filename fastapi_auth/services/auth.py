@@ -7,9 +7,11 @@ from pydantic.error_wrappers import ValidationError
 
 from fastapi_auth.core.email import EmailClient
 from fastapi_auth.core.jwt import JWTBackend
+from fastapi_auth.core.logger import logger
 from fastapi_auth.core.password import get_password_hash, verify_password
 from fastapi_auth.core.user import User
 from fastapi_auth.models.user import (
+    UserInChangeUsername,
     UserInCreate,
     UserInLogin,
     UserInRegister,
@@ -59,6 +61,16 @@ class AuthService(BaseService):
         cls._language = language
         cls._base_url = base_url
         cls._site = site
+
+    @staticmethod
+    def _validate_user_model(model, data):
+        try:
+            user = model(**data)
+            return user
+        except ValidationError as e:
+            for error in e.errors():
+                msg = error.get("msg")
+                raise HTTPException(400, detail=get_error_message(msg))
 
     async def _email_exists(self, email: str) -> bool:
         return await self._repo.get_by_email(email) is not None
@@ -273,4 +285,26 @@ class AuthService(BaseService):
         if not await self._repo.confirm_email(token_hash):
             raise HTTPException(403)
 
+        return None
+
+    async def change_username(self, id: int, username: str) -> None:
+        new_username = self._validate_user_model(
+            UserInChangeUsername, username
+        ).username
+
+        item = await self._repo.get(id)
+        old_username = item.get("username")
+        if old_username == new_username:
+            raise HTTPException(400, detail=get_error_message("username change same"))
+
+        existing_user = await self._repo.get_by_username(new_username)
+
+        if existing_user is not None:
+            raise HTTPException(400, detail=get_error_message("existing username"))
+
+        logger.info(
+            f"change_username id={id} old_username={old_username} new_username={new_username}"
+        )
+        await self._repo.change_username(id, new_username)
+        logger.info(f"change_username id={id} success")
         return None

@@ -1,6 +1,6 @@
 from typing import Dict
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Body, Depends, Request, Response
 from fastapi.exceptions import HTTPException
 
 from fastapi_auth.core.user import User, get_authenticated_user
@@ -112,5 +112,18 @@ def get_router(
     async def confirm_email(*, token: str):
         service = AuthService()
         return await service.confirm_email(token)
+
+    @router.post("/{id}/change_username", name="auth:change_username")
+    async def change_username(
+        *,
+        id: int,
+        username: str = Body(""),
+        user: User = Depends(get_authenticated_user),
+    ):
+        service = AuthService(user)
+        if user.id != id and not user.is_admin:
+            raise HTTPException(403)
+
+        return await service.change_username(id, username)
 
     return router
