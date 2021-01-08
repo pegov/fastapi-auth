@@ -35,7 +35,7 @@ class MongoDBBackend:
         return ret.get("c")
 
     async def get(self, id: int) -> Optional[dict]:
-        return await self._users.find_one({"id", id}, {"_id": 0})
+        return await self._users.find_one({"id": id}, {"_id": 0})
 
     async def get_by_email(self, email: str) -> Optional[dict]:
         return await self._users.find_one({"email": email}, {"_id": 0})
