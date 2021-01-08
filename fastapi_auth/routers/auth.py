@@ -117,7 +117,7 @@ def get_router(
     async def change_username(
         *,
         id: int,
-        username: str = Body(""),
+        username: str = Body("", embed=True),
         user: User = Depends(get_authenticated_user),
     ):
         service = AuthService(user)
