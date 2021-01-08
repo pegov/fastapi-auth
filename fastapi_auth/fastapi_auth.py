@@ -24,6 +24,7 @@ class FastAPIAuth:
         debug=False,
         language="RU",
         base_url="http://127.0.0.1",
+        site: str = "127.0.0.1",
         database_name: str = "users",
         jwt_algorithm: str = "RS256",
         access_expiration: int = 60 * 60 * 6,
@@ -49,7 +50,6 @@ class FastAPIAuth:
         # google_client_id: str = None,
         # google_client_secret: str = None,
     ):
-        site = base_url.split("//")[1]
 
         JWTBackend.create(
             jwt_algorithm,
