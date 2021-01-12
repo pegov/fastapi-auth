@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from fastapi_auth.core.email import EmailClient
-from fastapi_auth.core.jwt import JWTBackend
 from fastapi_auth.core.logger import logger
 from fastapi_auth.core.password import get_password_hash, verify_password
 from fastapi_auth.core.user import User
@@ -17,37 +16,28 @@ from fastapi_auth.models.user import (
 from fastapi_auth.resources.error_messages import get_error_message
 from fastapi_auth.utils.strings import create_random_string, hash_string
 
-from .base import BaseService
 
-
-class PasswordService(BaseService):
-    _debug: bool
-    _recaptcha_secret: str
-    _smtp_username: str
-    _smtp_password: str
-    _smtp_host: str
-    _smtp_tls: int
-    _language: str
-    _base_url: str
-    _site: str
-
+class PasswordService:
     def __init__(self, user: Optional[User] = None) -> None:
-        self._auth_backend: JWTBackend = JWTBackend()
         self._user = user
 
     @classmethod
-    def init(
+    def setup(
         cls,
+        repo,
+        auth_backend,
         debug: bool,
+        language: str,
+        base_url: str,
+        site: str,
         recaptcha_secret: str,
         smtp_username: str,
         smtp_password: str,
         smtp_host: str,
         smtp_tls: int,
-        language: str,
-        base_url: str,
-        site: str,
     ) -> None:
+        cls._repo = repo
+        cls._auth_backend = auth_backend
         cls._debug = debug
         cls._recaptcha_secret = recaptcha_secret
         cls._smtp_username = smtp_username
@@ -132,20 +122,6 @@ class PasswordService(BaseService):
 
         return None
 
-    async def password_reset(self, data: dict, token: str) -> None:
-        token_hash = hash_string(token)
-
-        id = await self._repo.get_id_for_password_reset(token_hash)
-        if id is None:
-            raise HTTPException(404)
-
-        user_model = self._validate_user_model(UserInSetPassword, data)
-
-        password_hash = get_password_hash(user_model.password1)
-        await self._repo.set_password(id, password_hash)
-
-        return None
-
     async def password_status(self) -> dict:
         item = await self._repo.get(self._user.id)
         if item.get("provider") is not None and item.get("password") is None:
@@ -164,6 +140,20 @@ class PasswordService(BaseService):
             raise HTTPException(
                 400, get_error_message("password already exists", self._language)
             )
+
+    async def password_reset(self, data: dict, token: str) -> None:
+        token_hash = hash_string(token)
+
+        id = await self._repo.get_id_for_password_reset(token_hash)
+        if id is None:
+            raise HTTPException(404)
+
+        user_model = self._validate_user_model(UserInSetPassword, data)
+
+        password_hash = get_password_hash(user_model.password1)
+        await self._repo.set_password(id, password_hash)
+
+        return None
 
     async def password_change(self, data: dict) -> None:
         user_model = self._validate_user_model(UserInChangePassword, data)

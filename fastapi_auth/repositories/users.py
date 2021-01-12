@@ -2,7 +2,6 @@ import re
 from datetime import datetime
 from typing import Optional, Tuple
 
-import orjson
 from email_validator import EmailNotValidError, validate_email
 
 from fastapi_auth.core.config import (
@@ -30,15 +29,18 @@ class Base:
 
 
 class UsersCRUDMixin(Base):
-    async def get(self, id: int, from_cache=True) -> Optional[dict]:
-        if from_cache:
-            cached_item = await self._cache.get(f"users:{id}")
-            if cached_item is not None:
-                return orjson.loads(cached_item)
-        item = await self._database.get(id)
-        if from_cache:
-            await self._cache.set(f"users:{id}", orjson.dumps(item), 60)
-        return item
+    # async def get(self, id: int, from_cache=True) -> Optional[dict]:
+    #     if from_cache:
+    #         cached_item = await self._cache.get(f"users:{id}")
+    #         if cached_item is not None:
+    #             return orjson.loads(cached_item)
+    #     item = await self._database.get(id)
+    #     if from_cache:
+    #         await self._cache.set(f"users:{id}", orjson.dumps(item), 60)
+    #     return item
+
+    async def get(self, id: int) -> Optional[dict]:
+        return await self._database.get(id)
 
     async def get_by_email(self, email: str) -> Optional[dict]:
         return await self._database.get_by_email(email)
@@ -139,7 +141,12 @@ class UsersConfirmMixin(Base):
 
 class UsersUsernameMixin(Base):
     async def change_username(self, id: int, username: str) -> None:
-        await self._database.update(id, {"username": username})
+        await self.update(id, {"username": username})
+        await self._cache.dispatch_action(
+            "chan:gens", "CHANGE_USERNAME", {"id": id, "username": username}
+        )  # TODO: remove hardcode
+        # for chan in chans:
+        # await self._cache.dispatch_action(chan, "CHANGE_USERNAME", {...})
 
 
 class UsersPasswordMixin(Base):
@@ -147,7 +154,7 @@ class UsersPasswordMixin(Base):
         pass
 
     async def set_password(self, id: int, password: str) -> None:
-        await self._database.update(id, {"password": password})
+        await self.update(id, {"password": password})
 
     async def is_password_reset_available(self, id: int) -> bool:
         key = f"users:reset:count:{id}"

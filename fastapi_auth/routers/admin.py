@@ -1,10 +1,16 @@
+from typing import Callable
+from fastapi_auth.repositories import UsersRepo
 from fastapi import APIRouter, Depends, Request
 
-from fastapi_auth.core.user import admin_required
 from fastapi_auth.services import AdminService
 
 
-def get_router():
+def get_router(
+    repo: UsersRepo,
+    admin_required: Callable,
+):
+
+    AdminService.setup(repo)
 
     router = APIRouter()
 

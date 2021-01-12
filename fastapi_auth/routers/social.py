@@ -1,6 +1,8 @@
+from fastapi_auth.core.jwt import JWTBackend
+from fastapi_auth.repositories import UsersRepo
 import hashlib
 import os
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,11 +12,18 @@ from fastapi_auth.services import SocialService
 
 
 def get_router(
+    repo: UsersRepo,
+    auth_backend: JWTBackend,
     debug: bool,
+    language: str,
+    base_url: str,
     access_expiration: int,
     refresh_expiration: int,
     social_providers: Iterable[str],
+    social_creds: Optional[dict],
 ):
+
+    SocialService.setup(repo, auth_backend, language, base_url, social_creds)
 
     router = APIRouter()
 

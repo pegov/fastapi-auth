@@ -1,9 +1,11 @@
-from typing import Dict
+from typing import Callable, Dict
 
 from fastapi import APIRouter, Body, Depends, Request, Response
 from fastapi.exceptions import HTTPException
 
-from fastapi_auth.core.user import User, get_authenticated_user
+from fastapi_auth.core.jwt import JWTBackend
+from fastapi_auth.core.user import User
+from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.services import AuthService
 
 """
@@ -19,10 +21,36 @@ POST /confirm/{token}
 
 
 def get_router(
+    repo: UsersRepo,
+    auth_backend: JWTBackend,
+    get_authenticated_user: Callable,
     debug: bool,
+    language: str,
+    base_url: str,
+    site: str,
     access_expiration: int,
     refresh_expiration: int,
+    recaptcha_secret: str,
+    smtp_username: str,
+    smtp_password: str,
+    smtp_host: str,
+    smtp_tls: int,
 ) -> APIRouter:
+
+    AuthService.setup(
+        repo,
+        auth_backend,
+        debug,
+        language,
+        base_url,
+        site,
+        recaptcha_secret,
+        smtp_username,
+        smtp_password,
+        smtp_host,
+        smtp_tls,
+    )
+
     def set_access_token_in_response(response, token: str) -> None:
         response.set_cookie(
             key="access_c",
@@ -94,21 +122,21 @@ def get_router(
         set_access_token_in_response(response, access_token)
         return {"access": access_token}
 
-    @router.get("/confirm", name="auth:get_confirmation_status")
+    @router.get("/confirm", name="auth:get_email_confirmation_status")
     async def get_email_confirmation_status(
         *, user: User = Depends(get_authenticated_user)
     ):
         service = AuthService(user)
         return await service.get_email_confirmation_status()
 
-    @router.post("/confirm", name="auth:request_confirmation")
+    @router.post("/confirm", name="auth:request_email_confirmation")
     async def request_email_confirmation(
         *, user: User = Depends(get_authenticated_user)
     ):
         service = AuthService(user)
         return await service.request_email_confirmation()
 
-    @router.post("/confirm/{token}", name="auth:confirm")
+    @router.post("/confirm/{token}", name="auth:confirm_email")
     async def confirm_email(*, token: str):
         service = AuthService()
         return await service.confirm_email(token)

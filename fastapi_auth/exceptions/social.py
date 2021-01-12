@@ -6,7 +6,7 @@ class SocialException(Exception):
     _base_url: str
 
     @classmethod
-    def init(cls, language: str, base_url: str) -> None:
+    def setup(cls, language: str, base_url: str) -> None:
         cls._language = language
         cls._base_url = base_url
 

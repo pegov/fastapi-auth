@@ -17,41 +17,33 @@ from fastapi_auth.models.user import (
     UserInRegister,
     UserPayload,
 )
+from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.resources.error_messages import get_error_message
 from fastapi_auth.utils.captcha import validate_captcha
 from fastapi_auth.utils.strings import create_random_string, hash_string
 
-from .base import BaseService
 
-
-class AuthService(BaseService):
-    _debug: bool
-    _recaptcha_secret: str
-    _smtp_username: str
-    _smtp_password: str
-    _smtp_host: str
-    _smtp_tls: int
-    _language: str
-    _base_url: str
-    _site: str
-
+class AuthService:
     def __init__(self, user: Optional[User] = None) -> None:
         self._user = user
-        self._auth_backend = JWTBackend()
 
     @classmethod
-    def init(
+    def setup(
         cls,
+        repo: UsersRepo,
+        auth_backend: JWTBackend,
         debug: bool,
+        language: str,
+        base_url: str,
+        site: str,
         recaptcha_secret: str,
         smtp_username: str,
         smtp_password: str,
         smtp_host: str,
         smtp_tls: int,
-        language: str,
-        base_url: str,
-        site: str,
     ) -> None:
+        cls._repo = repo
+        cls._auth_backend = auth_backend
         cls._debug = debug
         cls._recaptcha_secret = recaptcha_secret
         cls._smtp_username = smtp_username
@@ -63,7 +55,7 @@ class AuthService(BaseService):
         cls._site = site
 
     @staticmethod
-    def _validate_user_model(model, data):
+    def _validate_user_model(model, data: dict):
         try:
             user = model(**data)
             return user
@@ -94,7 +86,6 @@ class AuthService(BaseService):
         token_hash = hash_string(token)
         await self._repo.request_email_confirmation(email, token_hash)
         email_client = self._create_email_client()
-
         asyncio.create_task(email_client.send_confirmation_email(email, token))
 
     async def register(self, data: dict) -> Dict[str, str]:
@@ -254,18 +245,8 @@ class AuthService(BaseService):
         if not await self._repo.is_email_confirmation_available(self._user.id):
             raise HTTPException(429)
 
-        # TODO: use self._request_email_confirmation(email)
-
-        token = create_random_string()
-        token_hash = hash_string(token)
-
         email = item.get("email")
-
-        await self._repo.request_email_confirmation(email, token_hash)
-
-        email_client = self._create_email_client()
-
-        asyncio.create_task(email_client.send_confirmation_email(email, token))
+        await self._request_email_confirmation(email)
 
         return None
 
@@ -283,24 +264,28 @@ class AuthService(BaseService):
         """
         token_hash = hash_string(token)
         if not await self._repo.confirm_email(token_hash):
-            raise HTTPException(403)
+            raise HTTPException(403)  # TODO: ??? 400 maybe, change frontend too
 
         return None
 
     async def change_username(self, id: int, username: str) -> None:
         new_username = self._validate_user_model(
-            UserInChangeUsername, username
+            UserInChangeUsername, {"username": username}
         ).username
 
         item = await self._repo.get(id)
         old_username = item.get("username")
         if old_username == new_username:
-            raise HTTPException(400, detail=get_error_message("username change same"))
+            raise HTTPException(
+                400, detail=get_error_message("username change same", self._language)
+            )
 
         existing_user = await self._repo.get_by_username(new_username)
 
         if existing_user is not None:
-            raise HTTPException(400, detail=get_error_message("existing username"))
+            raise HTTPException(
+                400, detail=get_error_message("existing username", self._language)
+            )
 
         logger.info(
             f"change_username id={id} old_username={old_username} new_username={new_username}"

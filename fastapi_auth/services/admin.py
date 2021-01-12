@@ -1,12 +1,15 @@
 from datetime import datetime
+from fastapi_auth.repositories.users import UsersRepo
 from typing import Optional
 
 from fastapi import HTTPException
 
-from .base import BaseService
 
+class AdminService:
+    @classmethod
+    def setup(cls, repo: UsersRepo) -> None:
+        cls._repo = repo
 
-class AdminService(BaseService):
     async def get_blacklist(self) -> dict:
         return await self._repo.get_blacklist()
 

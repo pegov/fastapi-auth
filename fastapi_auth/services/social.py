@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 import jwt
 from httpx import AsyncClient
@@ -8,27 +8,29 @@ from fastapi_auth.core.jwt import JWTBackend
 from fastapi_auth.exceptions import SocialException
 from fastapi_auth.models.social import SocialInCreate
 from fastapi_auth.models.user import UserPayload
-
-from .base import BaseService
+from fastapi_auth.repositories import UsersRepo
 
 # TODO: Provider class
 
 
-class SocialService(BaseService):
-    _base_url: str
-
-    def __init__(self) -> None:
-        self._auth_backend = JWTBackend()
-
+class SocialService:
     @classmethod
-    def init(cls, language: str, base_url: str, options: dict) -> None:
-        cls._base_url = base_url
+    def setup(
+        cls,
+        repo: UsersRepo,
+        auth_backend: JWTBackend,
+        language: str,
+        base_url: str,
+        options: Optional[dict],
+    ) -> None:
+        SocialException.setup(language, base_url)
+        cls._repo = repo
+        cls._auth_backend = auth_backend
 
-        SocialException.init(language, base_url)
-
-        for key, value in options.items():
-            setattr(cls, f"{key}_id", value.get("id"))
-            setattr(cls, f"{key}_secret", value.get("secret"))
+        if options is not None:
+            for key, value in options.items():
+                setattr(cls, f"{key}_id", value.get("id"))
+                setattr(cls, f"{key}_secret", value.get("secret"))
 
     def _create_redirect_uri(self, provider: str) -> str:
         return f"{self._base_url}/auth/{provider}/callback"

@@ -7,31 +7,21 @@ from fastapi_auth.db.backend import RedisBackend
 
 
 class JWTBackend:
-    _cache: Optional[RedisBackend] = None
-    _jwt_algorithm: str
-    _private_key: bytes
-    _public_key: bytes
-    _access_expiration: int
-    _refresh_expiration: int
-
-    @classmethod
-    def create(
-        cls,
+    def __init__(
+        self,
+        cache_backend: RedisBackend,
         jwt_algorithm: str,
         private_key: bytes,
         public_key: bytes,
         access_expiration: int,
         refresh_expiration: int,
     ) -> None:
-        cls._jwt_algorithm = jwt_algorithm
-        cls._private_key = private_key
-        cls._public_key = public_key
-        cls._access_expiration = access_expiration
-        cls._refresh_expiration = refresh_expiration
-
-    @classmethod
-    def set_cache(cls, cache: RedisBackend) -> None:
-        cls._cache = cache
+        self._cache = cache_backend
+        self._jwt_algorithm = jwt_algorithm
+        self._private_key = private_key
+        self._public_key = public_key
+        self._access_expiration = access_expiration
+        self._refresh_expiration = refresh_expiration
 
     async def _active_blackout_exists(self, iat: datetime) -> bool:
         blackout = await self._cache.get("users:blackout")

@@ -1,10 +1,40 @@
+from typing import Callable
 from fastapi import APIRouter, Depends, Request
 
-from fastapi_auth.core.user import User, get_authenticated_user
+from fastapi_auth.core.jwt import JWTBackend
+from fastapi_auth.core.user import User
+from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.services import PasswordService
 
 
-def get_router():
+def get_router(
+    repo: UsersRepo,
+    auth_backend: JWTBackend,
+    get_authenticated_user: Callable,
+    debug: bool,
+    language: str,
+    base_url: str,
+    site: str,
+    recaptcha_secret: str,
+    smtp_username: str,
+    smtp_password: str,
+    smtp_host: str,
+    smtp_tls: str,
+):
+
+    PasswordService.setup(
+        repo,
+        auth_backend,
+        debug,
+        language,
+        base_url,
+        site,
+        recaptcha_secret,
+        smtp_username,
+        smtp_password,
+        smtp_host,
+        smtp_tls,
+    )
 
     router = APIRouter()
 
@@ -28,7 +58,7 @@ def get_router():
         service = PasswordService(user)
         return await service.password_set(data)
 
-    @router.post("/password/{token}")
+    @router.post("/password/{token}", name="auth:password_reset")
     async def password_reset(*, token: str, request: Request):
         data = await request.json()
         service = PasswordService()

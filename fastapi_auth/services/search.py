@@ -1,13 +1,16 @@
+from fastapi_auth.repositories.users import UsersRepo
 from typing import Optional
 
 from fastapi import HTTPException
 
 from fastapi_auth.models.user import UserPrivateInfo
 
-from .base import BaseService
 
+class SearchService:
+    @staticmethod
+    def setup(cls, repo: UsersRepo) -> None:
+        cls._repo = repo
 
-class SearchService(BaseService):
     async def get_user(self, id: int):
         item = await self._repo.get(id)
         if item is None:
