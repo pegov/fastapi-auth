@@ -7,7 +7,7 @@ from fastapi_auth.models.user import UserPrivateInfo
 
 
 class SearchService:
-    @staticmethod
+    @classmethod
     def setup(cls, repo: UsersRepo) -> None:
         cls._repo = repo
 
