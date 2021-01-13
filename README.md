@@ -8,9 +8,9 @@ Create global object and import it, otherwise it is a complete mess.
 ```python
 # auth.py
 ...
-from fastapi_auth import FastAPIAuth
+from fastapi_auth import AuthApp
 
-auth = FastAPIAuth(...)
+auth = AuthApp(...)
 
 # main.py
 ...
@@ -34,11 +34,35 @@ auth.set_database(database) # motor client
 ...
 ```
 
-### Dependency injections:
+### Dependency injections
 ```python
-from fastapi_auth import get_user, get_authenticated_user, admin_required
-
-# return User
+from fastapi import APIRouter, Depends
 from fastapi_auth import User
+from .auth import auth
+
+router = APIRouter()
+
+@router.get("/anonim")
+def anonim_test(user: User = Depends(auth.get_user)):
+  ...
+
+@router.get("/user")
+def user_test(user: User = Depends(auth.get_authenticated_user)):
+  ...
+
+@router.get("/admin", dependencies=[Depends(auth.admin_required)])
+def admin_test():
+  ...
+
 ```
 
+### Dependency injections only
+```python
+from fastapi_auth import Auth
+auth = Auth(...)
+
+# startup
+...
+auth.set_cache(cache) # aioredis
+...
+```
