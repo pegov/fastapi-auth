@@ -1,7 +1,8 @@
 from typing import Callable
-from fastapi_auth.repositories import UsersRepo
-from fastapi import APIRouter, Depends, Request
 
+from fastapi import APIRouter, Depends
+
+from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.services import AdminService
 
 
@@ -62,17 +63,19 @@ def get_router(
         service = AdminService()
         return await service.get_id_by_username(username)
 
-    @router.post(
-        "/{id}/permissions",
-        name="admin:update_permissions",
-        dependencies=[Depends(admin_required)],
-    )
-    async def update_permissions(*, id: int, request: Request):
-        data = await request.json()
-        service = AdminService()
-        return service.update_permissions(id, data)
+    # @router.post(
+    #     "/{id}/permissions",
+    #     name="admin:update_permissions",
+    #     dependencies=[Depends(admin_required)],
+    # )
+    # async def update_permissions(*, id: int, request: Request):
+    #     data = await request.json()
+    #     service = AdminService()
+    #     return service.update_permissions(id, data)
 
-    @router.post("{id}/kick", name="admin:kick", dependencies=[Depends(admin_required)])
+    @router.post(
+        "/{id}/kick", name="admin:kick", dependencies=[Depends(admin_required)]
+    )
     async def kick(*, id: int):
         service = AdminService()
         return await service.kick(id)

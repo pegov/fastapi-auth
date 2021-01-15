@@ -24,6 +24,18 @@ from fastapi_auth.utils.strings import create_random_string, hash_string
 
 
 class AuthService:
+    _repo: UsersRepo
+    _auth_backend: JWTBackend
+    _debug: bool
+    _language: str
+    _base_url: str
+    _site: str
+    _recaptcha_secret: str
+    _smtp_username: str
+    _smtp_password: str
+    _smtp_host: str
+    _smtp_tls: int
+
     def __init__(self, user: Optional[User] = None) -> None:
         self._user = user
 
@@ -54,15 +66,14 @@ class AuthService:
         cls._base_url = base_url
         cls._site = site
 
-    @staticmethod
-    def _validate_user_model(model, data: dict):
+    def _validate_user_model(self, model, data: dict):
         try:
             user = model(**data)
             return user
         except ValidationError as e:
-            for error in e.errors():
-                msg = error.get("msg")
-                raise HTTPException(400, detail=get_error_message(msg))
+            # for error in e.errors():
+            msg = e.errors()[0].get("msg")
+            raise HTTPException(400, detail=get_error_message(msg, self._language))
 
     async def _email_exists(self, email: str) -> bool:
         return await self._repo.get_by_email(email) is not None
@@ -109,11 +120,12 @@ class AuthService:
                     400, detail=get_error_message("captcha", self._language)
                 )
 
-        try:
-            user = UserInRegister(**data)
-        except ValidationError as e:
-            message = get_error_message(e.errors()[0].get("msg"), self._language)
-            raise HTTPException(400, detail=message)
+        # try:
+        #     user = UserInRegister(**data)
+        # except ValidationError as e:
+        #     message = get_error_message(e.errors()[0].get("msg"), self._language)
+        #     raise HTTPException(400, detail=message)
+        user = self._validate_user_model(UserInRegister, data)
 
         if await self._email_exists(user.email):
             raise HTTPException(

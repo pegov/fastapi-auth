@@ -1,12 +1,14 @@
-from fastapi_auth.repositories.users import UsersRepo
 from typing import Optional
 
 from fastapi import HTTPException
 
 from fastapi_auth.models.user import UserPrivateInfo
+from fastapi_auth.repositories.users import UsersRepo
 
 
 class SearchService:
+    _repo: UsersRepo
+
     @classmethod
     def setup(cls, repo: UsersRepo) -> None:
         cls._repo = repo

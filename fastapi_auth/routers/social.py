@@ -1,5 +1,3 @@
-from fastapi_auth.core.jwt import JWTBackend
-from fastapi_auth.repositories import UsersRepo
 import hashlib
 import os
 from typing import Iterable, Optional
@@ -7,8 +5,14 @@ from typing import Iterable, Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from fastapi_auth.core.jwt import JWTBackend
 from fastapi_auth.exceptions.social import SocialException
+from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.services import SocialService
+
+
+def check_state(query: str, session: str) -> bool:
+    return query == session
 
 
 def get_router(
@@ -17,6 +21,8 @@ def get_router(
     debug: bool,
     language: str,
     base_url: str,
+    access_cookie_name: str,
+    refresh_cookie_name: str,
     access_expiration: int,
     refresh_expiration: int,
     social_providers: Iterable[str],
@@ -50,7 +56,7 @@ def get_router(
         state_query = request.query_params.get("state")
         state_session = request.session.get("state")
 
-        if state_query != state_session:
+        if not check_state(state_query, state_session):
             raise HTTPException(403)
 
         code = request.query_params.get("code")
@@ -62,15 +68,16 @@ def get_router(
         try:
             tokens = await service.resolve_user(provider, sid, email)
             response = RedirectResponse("/")
+            # TODO: cookie key names
             response.set_cookie(
-                key="access_c",
+                key=access_cookie_name,
                 value=tokens.get("access"),
                 secure=not debug,
                 httponly=True,
                 max_age=access_expiration,
             )
             response.set_cookie(
-                key="refresh_c",
+                key=refresh_cookie_name,
                 value=tokens.get("refresh"),
                 secure=not debug,
                 httponly=True,

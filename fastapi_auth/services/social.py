@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
 import jwt
 from httpx import AsyncClient
@@ -11,9 +11,21 @@ from fastapi_auth.models.user import UserPayload
 from fastapi_auth.repositories import UsersRepo
 
 # TODO: Provider class
+# class Provider:
+#     def login(state: str) -> str:
+#         pass
+
+#     async def callback(code: str) -> Tuple[str, str]:
+#         pass
 
 
 class SocialService:
+    _repo: UsersRepo
+    _auth_backend: JWTBackend
+    _language: str
+    _base_url: str
+    options: Optional[dict]
+
     @classmethod
     def setup(
         cls,

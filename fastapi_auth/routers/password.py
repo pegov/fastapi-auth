@@ -1,4 +1,5 @@
 from typing import Callable
+
 from fastapi import APIRouter, Depends, Request
 
 from fastapi_auth.core.jwt import JWTBackend
@@ -19,7 +20,7 @@ def get_router(
     smtp_username: str,
     smtp_password: str,
     smtp_host: str,
-    smtp_tls: str,
+    smtp_tls: int,
 ):
 
     PasswordService.setup(

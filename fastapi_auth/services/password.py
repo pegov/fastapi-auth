@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from fastapi_auth.core.email import EmailClient
+from fastapi_auth.core.jwt import JWTBackend
 from fastapi_auth.core.logger import logger
 from fastapi_auth.core.password import get_password_hash, verify_password
 from fastapi_auth.core.user import User
@@ -13,11 +14,24 @@ from fastapi_auth.models.user import (
     UserInForgotPassword,
     UserInSetPassword,
 )
+from fastapi_auth.repositories.users import UsersRepo
 from fastapi_auth.resources.error_messages import get_error_message
 from fastapi_auth.utils.strings import create_random_string, hash_string
 
 
 class PasswordService:
+    _repo: UsersRepo
+    _auth_backend: JWTBackend
+    _debug: bool
+    _language: str
+    _base_url: str
+    _site: str
+    _recaptcha_secret: str
+    _smtp_username: str
+    _smtp_password: str
+    _smtp_host: str
+    _smtp_tls: int
+
     def __init__(self, user: Optional[User] = None) -> None:
         self._user = user
 
@@ -59,15 +73,14 @@ class PasswordService:
             self._site,
         )
 
-    @staticmethod
-    def _validate_user_model(model, data):
+    def _validate_user_model(self, model, data):
         try:
             user = model(**data)
             return user
         except ValidationError as e:
-            for error in e.errors():
-                msg = error.get("msg")
-                raise HTTPException(400, detail=get_error_message(msg))
+            # for error in e.errors():
+            msg = e.errors()[0].get("msg")
+            raise HTTPException(400, detail=get_error_message(msg, self._language))
 
     async def forgot_password(self, data: dict, ip: str) -> None:
         """POST /forgot_password

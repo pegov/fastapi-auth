@@ -38,7 +38,6 @@ class EmailClient:
             port=self._tls,
             timeout=30,
             start_tls=True,
-            use_tls=True,
         )
 
         del msg

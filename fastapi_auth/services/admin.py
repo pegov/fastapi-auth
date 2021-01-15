@@ -1,11 +1,14 @@
 from datetime import datetime
-from fastapi_auth.repositories.users import UsersRepo
 from typing import Optional
 
 from fastapi import HTTPException
 
+from fastapi_auth.repositories.users import UsersRepo
+
 
 class AdminService:
+    _repo: UsersRepo
+
     @classmethod
     def setup(cls, repo: UsersRepo) -> None:
         cls._repo = repo
@@ -25,7 +28,8 @@ class AdminService:
             raise HTTPException(404)
 
     async def set_blackout(self) -> None:
-        ts = int(datetime.utcnow().timestamp()) + 10
+        epoch = datetime.utcfromtimestamp(0)
+        ts = int((datetime.utcnow() - epoch).total_seconds()) + 10
         await self._repo.set_blackout(ts)
         return None
 

@@ -9,11 +9,11 @@ from fastapi_auth.core.user import User
 from fastapi_auth.db.backend import MongoDBBackend, RedisBackend
 from fastapi_auth.repositories import UsersRepo
 from fastapi_auth.routers import (
+    get_admin_router,
     get_auth_router,
     get_password_router,
-    get_social_router,
-    get_admin_router,
     get_search_router,
+    get_social_router,
 )
 
 
@@ -140,6 +140,8 @@ class AuthApp(Auth):
             self._language,
             self._base_url,
             self._site,
+            self._access_cookie_name,
+            self._refresh_cookie_name,
             self._access_expiration,
             self._refresh_expiration,
             self._recaptcha_secret,
@@ -174,6 +176,8 @@ class AuthApp(Auth):
             self._debug,
             self._language,
             self._base_url,
+            self._access_cookie_name,
+            self._refresh_cookie_name,
             self._access_expiration,
             self._refresh_expiration,
             self._social_providers,

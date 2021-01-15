@@ -28,6 +28,8 @@ def get_router(
     language: str,
     base_url: str,
     site: str,
+    access_cookie_name: str,
+    refresh_cookie_name: str,
     access_expiration: int,
     refresh_expiration: int,
     recaptcha_secret: str,
@@ -53,7 +55,7 @@ def get_router(
 
     def set_access_token_in_response(response, token: str) -> None:
         response.set_cookie(
-            key="access_c",
+            key=access_cookie_name,
             value=token,
             secure=not debug,
             httponly=True,
@@ -62,7 +64,7 @@ def get_router(
 
     def set_refresh_token_in_response(response, token: str) -> None:
         response.set_cookie(
-            key="refresh_c",
+            key=refresh_cookie_name,
             value=token,
             secure=not debug,
             httponly=True,
@@ -99,8 +101,8 @@ def get_router(
 
     @router.post("/logout", name="auth:logout")
     async def logout(*, response: Response):
-        response.delete_cookie("access_c")
-        response.delete_cookie("refresh_c")
+        response.delete_cookie(access_cookie_name)
+        response.delete_cookie(refresh_cookie_name)
         return None
 
     @router.post("/token", name="auth:token")
@@ -114,7 +116,7 @@ def get_router(
         response: Response,
     ):
         service = AuthService()
-        refresh_token = request.cookies.get("refresh_c")
+        refresh_token = request.cookies.get(refresh_cookie_name)
         if refresh_token is None:
             raise HTTPException(401)
 
@@ -149,9 +151,9 @@ def get_router(
         user: User = Depends(get_authenticated_user),
     ):
         service = AuthService(user)
-        if user.id != id and not user.is_admin:
+        if user.id == id or user.is_admin:
+            return await service.change_username(id, username)
+        else:
             raise HTTPException(403)
-
-        return await service.change_username(id, username)
 
     return router
