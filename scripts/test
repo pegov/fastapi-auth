@@ -2,4 +2,5 @@
 # echo "Cleaning test db..."
 # poetry run python clean_test_db.py
 # echo "Test db cleaned!"
-DATABASE_NAME=test_test DEBUG=1 poetry run pytest --cov=fastapi_auth --cov-report=html
+# DATABASE_NAME=test_test DEBUG=1 poetry run pytest --cov=fastapi_auth --cov-report=html
+DEBUG=1 poetry run pytest --cov=fastapi_auth --cov-report=html
