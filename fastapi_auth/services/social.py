@@ -22,7 +22,6 @@ from fastapi_auth.repositories import UsersRepo
 class SocialService:
     _repo: UsersRepo
     _auth_backend: JWTBackend
-    _language: str
     _base_url: str
     options: Optional[dict]
 
@@ -38,6 +37,7 @@ class SocialService:
         SocialException.setup(language, base_url)
         cls._repo = repo
         cls._auth_backend = auth_backend
+        cls._base_url = base_url
 
         if options is not None:
             for key, value in options.items():
