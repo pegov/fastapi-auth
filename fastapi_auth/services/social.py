@@ -134,6 +134,8 @@ class SocialService:
         if existing_user is not None:
             await self._repo.update_last_login(existing_user.get("id"))
             item = existing_user
+            if not item.get("active"):
+                raise SocialException("ban", 401)
         else:
             existing_email = await self._repo.get_by_email(email)
             if existing_email is not None:
