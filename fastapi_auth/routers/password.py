@@ -21,6 +21,7 @@ def get_router(
     smtp_password: str,
     smtp_host: str,
     smtp_tls: int,
+    display_name: str,
 ):
 
     PasswordService.setup(
@@ -35,6 +36,7 @@ def get_router(
         smtp_password,
         smtp_host,
         smtp_tls,
+        display_name,
     )
 
     router = APIRouter()

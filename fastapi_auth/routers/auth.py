@@ -37,6 +37,7 @@ def get_router(
     smtp_password: str,
     smtp_host: str,
     smtp_tls: int,
+    display_name: str,
 ) -> APIRouter:
 
     AuthService.setup(
@@ -51,6 +52,7 @@ def get_router(
         smtp_password,
         smtp_host,
         smtp_tls,
+        display_name,
     )
 
     def set_access_token_in_response(response, token: str) -> None:

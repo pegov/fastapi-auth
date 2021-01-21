@@ -14,6 +14,7 @@ class EmailClient:
         language: str,
         base_url: str,
         site: str,
+        display_name: str,
     ):
         self._username = username
         self._host = host
@@ -22,10 +23,11 @@ class EmailClient:
         self._language = language
         self._base_url = base_url
         self._site = site
+        self._display_name = display_name
 
     async def _send_email(self, email: str, subject: str, message: str) -> None:
         msg = MIMEMultipart()
-        msg["From"] = self._username
+        msg["From"] = f"{self._display_name} <{self._username}>"
         msg["To"] = email
         msg["Subject"] = subject
 
@@ -36,8 +38,8 @@ class EmailClient:
             username=self._username,
             password=self._password,
             port=self._tls,
-            timeout=30,
-            start_tls=True,
+            timeout=20,
+            use_tls=True,
         )
 
         del msg

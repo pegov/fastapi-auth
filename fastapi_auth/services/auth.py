@@ -35,6 +35,7 @@ class AuthService:
     _smtp_password: str
     _smtp_host: str
     _smtp_tls: int
+    _display_name: str
 
     def __init__(self, user: Optional[User] = None) -> None:
         self._user = user
@@ -53,6 +54,7 @@ class AuthService:
         smtp_password: str,
         smtp_host: str,
         smtp_tls: int,
+        display_name: str,
     ) -> None:
         cls._repo = repo
         cls._auth_backend = auth_backend
@@ -65,6 +67,7 @@ class AuthService:
         cls._language = language
         cls._base_url = base_url
         cls._site = site
+        cls._display_name = display_name
 
     def _validate_user_model(self, model, data: dict):
         try:
@@ -90,6 +93,7 @@ class AuthService:
             self._language,
             self._base_url,
             self._site,
+            self._display_name,
         )
 
     async def _request_email_confirmation(self, email: str) -> None:
@@ -97,7 +101,7 @@ class AuthService:
         token_hash = hash_string(token)
         await self._repo.request_email_confirmation(email, token_hash)
         email_client = self._create_email_client()
-        asyncio.create_task(email_client.send_confirmation_email(email, token))
+        await email_client.send_confirmation_email(email, token)
 
     async def register(self, data: dict) -> Dict[str, str]:
         """POST /register
@@ -142,8 +146,8 @@ class AuthService:
         ).dict()
 
         new_user_id = await self._repo.create(new_user)
-        if not self._debug:
-            await self._request_email_confirmation(user.email)
+        # if not self._debug:
+        asyncio.create_task(self._request_email_confirmation(user.email))
 
         payload = UserPayload(id=new_user_id, username=user.username).dict()
         return self._auth_backend.create_tokens(payload)

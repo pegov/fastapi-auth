@@ -1,4 +1,3 @@
-import asyncio
 from typing import Optional
 
 from fastapi import HTTPException
@@ -31,6 +30,7 @@ class PasswordService:
     _smtp_password: str
     _smtp_host: str
     _smtp_tls: int
+    _display_name: str
 
     def __init__(self, user: Optional[User] = None) -> None:
         self._user = user
@@ -49,6 +49,7 @@ class PasswordService:
         smtp_password: str,
         smtp_host: str,
         smtp_tls: int,
+        display_name: str,
     ) -> None:
         cls._repo = repo
         cls._auth_backend = auth_backend
@@ -61,6 +62,7 @@ class PasswordService:
         cls._language = language
         cls._base_url = base_url
         cls._site = site
+        cls._display_name = display_name
 
     def _create_email_client(self) -> EmailClient:
         return EmailClient(
@@ -71,6 +73,7 @@ class PasswordService:
             self._language,
             self._base_url,
             self._site,
+            self._display_name,
         )
 
     def _validate_user_model(self, model, data):
@@ -129,9 +132,9 @@ class PasswordService:
 
         await self._repo.set_password_reset_token(id, token_hash)
 
-        if not self._debug:  # TODO
-            email_client = self._create_email_client()
-            asyncio.create_task(email_client.send_forgot_password_email(email, token))
+        # if not self._debug:  # TODO
+        email_client = self._create_email_client()
+        await email_client.send_forgot_password_email(email, token)
 
         return None
 

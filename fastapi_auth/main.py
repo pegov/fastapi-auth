@@ -90,6 +90,7 @@ class AuthApp(Auth):
         smtp_password: str,
         smtp_host: str,
         smtp_tls: int,
+        display_name: str,
         recaptcha_secret: str,
         social_providers: Iterable,
         social_creds: Optional[dict],
@@ -110,6 +111,7 @@ class AuthApp(Auth):
         self._smtp_password = smtp_password
         self._smtp_host = smtp_host
         self._smtp_tls = smtp_tls
+        self._display_name = display_name
         self._recaptcha_secret = recaptcha_secret
         self._social_providers = social_providers
         self._social_creds = social_creds
@@ -149,6 +151,7 @@ class AuthApp(Auth):
             self._smtp_password,
             self._smtp_host,
             self._smtp_tls,
+            self._display_name,
         )
 
     @property
@@ -166,6 +169,7 @@ class AuthApp(Auth):
             self._smtp_password,
             self._smtp_host,
             self._smtp_tls,
+            self._display_name,
         )
 
     @property

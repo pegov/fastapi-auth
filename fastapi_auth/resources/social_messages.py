@@ -11,16 +11,20 @@ class SocialErrorMessages:
                 "email exists": f"""<p>Такой email уже зарегистрирован через другую соц. сеть или напрямую через сайт.</p>
                 <p><a href="{base_url}/login">Обратно</p>
                 """,
+                "ban": f"""<p>Учетная запись деактивирована за нарушение правил сайта.</p>
+                <p><a href="{base_url}/login">Обратно</p>""",
             }
             self._server_error = "Неизвестная ошибка"
         else:
             self._full_messages = {
                 "email facebook error": f"""<p>We can't get your email. Please, check <a href="https://facebook.com/settings>your facebook settings</a>. Make sure you have email there.</p>
-                <p><a href="{base_url}/login">Back to mainpage</p>
+                <p><a href="{base_url}/login">Back</p>
                 """,
                 "email exists": f"""<p>Email already exists.</p>
-                <p><a href="{base_url}/login">Back to mainpage</p>
+                <p><a href="{base_url}/login">Back</p>
                 """,
+                "ban": f"""<p>User has been banned.</p>
+                <p><a href="{base_url}/login">Back</p>""",
             }
             self._server_error = "Unknown error"
 
