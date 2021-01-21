@@ -193,7 +193,7 @@ class UsersManagementMixin(Base):
     async def toggle_blacklist(self, id: int) -> None:
         item = await self.get(id)  # type: ignore
         active = item.get("active")
-        self.update(id, {"active": not active})  # type: ignore
+        await self.update(id, {"active": not active})
         key = f"users:blacklist:{id}"
         if active:
             await self._cache.set(key, 1, expire=self._access_expiration)
