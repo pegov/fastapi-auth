@@ -78,6 +78,7 @@ class AuthApp(Auth):
         base_url: str,
         site: str,
         database_name: str,
+        callbacks: Iterable,
         access_cookie_name: str,
         refresh_cookie_name: str,
         jwt_algorithm: str,
@@ -128,7 +129,7 @@ class AuthApp(Auth):
         )
 
         self._users_repo = UsersRepo(
-            self._database_backend, self._cache_backend, access_expiration
+            self._database_backend, self._cache_backend, callbacks, access_expiration
         )
 
     @property

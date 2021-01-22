@@ -1,6 +1,7 @@
+import asyncio
 import re
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 from email_validator import EmailNotValidError, validate_email
 
@@ -21,10 +22,12 @@ class Base:
         self,
         database: MongoDBBackend,
         cache: RedisBackend,
+        callbacks: Iterable,
         access_expiration: int = 60 * 60 * 6,
     ):
         self._database: Optional[MongoDBBackend] = database
         self._cache: Optional[RedisBackend] = cache
+        self._callbacks = callbacks
         self._access_expiration = access_expiration
 
 
@@ -140,13 +143,20 @@ class UsersConfirmMixin(Base):
 
 
 class UsersUsernameMixin(Base):
-    async def change_username(self, id: int, username: str) -> None:
-        await self.update(id, {"username": username})
-        await self._cache.dispatch_action(
-            "chan:gens", "CHANGE_USERNAME", {"id": id, "username": username}
-        )  # TODO: remove hardcode
-        # for chan in chans:
-        # await self._cache.dispatch_action(chan, "CHANGE_USERNAME", {...})
+    async def change_username(self, id: int, new_username: str) -> None:
+        await self.update(id, {"username": new_username})
+        for callback in self._callbacks:
+            if isinstance(callback, str):
+                await self._cache.dispatch_action(
+                    f"chan:{callback}",
+                    "CHANGE_USERNAME",
+                    {"id": id, "username": new_username},
+                )
+            else:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(id, new_username)
+                else:
+                    callback(id, new_username)
 
 
 class UsersPasswordMixin(Base):
