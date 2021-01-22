@@ -23,7 +23,6 @@ class Auth:
         access_cookie_name: str,
         refresh_cookie_name: str,
         jwt_algorithm: str,
-        private_key: bytes,
         public_key: bytes,
         access_expiration: int,
         refresh_expiration: int,
@@ -35,7 +34,7 @@ class Auth:
         self._auth_backend = JWTBackend(
             self._cache_backend,
             jwt_algorithm,
-            private_key,
+            None,
             public_key,
             access_expiration,
             refresh_expiration,

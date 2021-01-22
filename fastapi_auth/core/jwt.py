@@ -11,7 +11,7 @@ class JWTBackend:
         self,
         cache_backend: RedisBackend,
         jwt_algorithm: str,
-        private_key: bytes,
+        private_key: Optional[bytes],
         public_key: bytes,
         access_expiration: int,
         refresh_expiration: int,
