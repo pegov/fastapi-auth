@@ -1,2 +1,0 @@
-#!/bin/bash
-DATABASE_NAME=test poetry run uvicorn "fastapi_auth.main:app" --reload
