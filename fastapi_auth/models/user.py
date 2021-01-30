@@ -5,13 +5,13 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, EmailStr, validator
 
 from fastapi_auth.core.config import (
-    MAX_PASSWORD_LENGTH,
-    MAX_USERNAME_LENGTH,
-    MIN_PASSWORD_LENGTH,
-    MIN_USERNAME_LENGTH,
     PASSWORD_CHARS,
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
     TIME_DELTA,
     USERNAME_CHARS,
+    USERNAME_MAX_LENGTH,
+    USERNAME_MIN_LENGTH,
     WRONG_USERNAMES,
     russian_letters,
 )
@@ -20,7 +20,7 @@ from fastapi_auth.models.common import DefaultModel
 
 def check_username(v: str) -> str:
     v = v.strip()
-    if not len(v) >= MIN_USERNAME_LENGTH or not len(v) <= MAX_USERNAME_LENGTH:
+    if not len(v) >= USERNAME_MIN_LENGTH or not len(v) <= USERNAME_MAX_LENGTH:
         raise ValueError("username length")
     for letter in v:
         if letter not in USERNAME_CHARS:
@@ -40,7 +40,7 @@ def check_username(v: str) -> str:
 def check_password(v: str, values) -> str:
     if " " in v:
         raise ValueError("password space")
-    if not len(v) >= MIN_PASSWORD_LENGTH or not len(v) <= MAX_PASSWORD_LENGTH:
+    if not len(v) >= PASSWORD_MIN_LENGTH or not len(v) <= PASSWORD_MAX_LENGTH:
         raise ValueError("password length")
     if v != values.get("password1"):
         raise ValueError("password mismatch")
