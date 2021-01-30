@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from typing import Dict, Optional
 
+from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException
 from pydantic.error_wrappers import ValidationError
 
@@ -145,9 +146,16 @@ class AuthService:
             **user.dict(), password=get_password_hash(user.password1)
         ).dict()
 
+        try:
+            validate_email(new_user.get("email"), timeout=5)
+        except EmailNotValidError:
+            raise HTTPException(
+                400, detail=get_error_message("try another email", self._language)
+            )
+
         new_user_id = await self._repo.create(new_user)
-        # if not self._debug:
-        asyncio.create_task(self._request_email_confirmation(user.email))
+
+        asyncio.create_task(self._request_email_confirmation(new_user.get("email")))
 
         payload = UserPayload(id=new_user_id, username=user.username).dict()
         return self._auth_backend.create_tokens(payload)

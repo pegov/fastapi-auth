@@ -34,6 +34,7 @@ class ErrorMessages:
                 "password invalid": "Неверный пароль!",
                 "username change same": "Новое имя не отличается от старого",
                 "server error": "Неизвестная ошибка",
+                "try another email": "Попробуйте другой email адрес",
             }
             self._server_error = "Неизвестная ошибка"
         else:
@@ -58,6 +59,7 @@ class ErrorMessages:
                 "password invalid": "Wrong password!",
                 "username change same": "Enter NEW username",
                 "server error": "Unknown error",
+                "try another email": "Try another email",
             }
             self._server_error = "Unknown error"
 
