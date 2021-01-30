@@ -22,7 +22,6 @@ class Auth:
         self,
         access_cookie_name: str,
         refresh_cookie_name: str,
-        jwt_algorithm: str,
         public_key: bytes,
         access_expiration: int,
         refresh_expiration: int,
@@ -33,7 +32,6 @@ class Auth:
         self._cache_backend = RedisBackend()
         self._auth_backend = JWTBackend(
             self._cache_backend,
-            jwt_algorithm,
             None,
             public_key,
             access_expiration,
@@ -81,7 +79,6 @@ class AuthApp(Auth):
         callbacks: Iterable,
         access_cookie_name: str,
         refresh_cookie_name: str,
-        jwt_algorithm: str,
         private_key: bytes,
         public_key: bytes,
         access_expiration: int,
@@ -102,7 +99,6 @@ class AuthApp(Auth):
         self._database_name = database_name
         self._access_cookie_name = access_cookie_name
         self._refresh_cookie_name = refresh_cookie_name
-        self._jwt_algorithm = jwt_algorithm
         self._private_key = private_key
         self._public_key = public_key
         self._access_expiration = access_expiration
@@ -121,7 +117,6 @@ class AuthApp(Auth):
 
         self._auth_backend = JWTBackend(
             self._cache_backend,
-            jwt_algorithm,
             private_key,
             public_key,
             access_expiration,

@@ -3,6 +3,7 @@ from typing import Optional
 
 import jwt
 
+from fastapi_auth.core.config import JWT_ALGORITHM
 from fastapi_auth.db.backend import RedisBackend
 
 
@@ -10,14 +11,12 @@ class JWTBackend:
     def __init__(
         self,
         cache_backend: RedisBackend,
-        jwt_algorithm: str,
         private_key: Optional[bytes],
         public_key: bytes,
         access_expiration: int,
         refresh_expiration: int,
     ) -> None:
         self._cache = cache_backend
-        self._jwt_algorithm = jwt_algorithm
         self._private_key = private_key
         self._public_key = public_key
         self._access_expiration = access_expiration
@@ -50,7 +49,7 @@ class JWTBackend:
                     token,
                     self._public_key,
                     leeway=leeway,
-                    algorithms=self._jwt_algorithm,
+                    algorithms=JWT_ALGORITHM,
                 )
                 id = payload.get("id")
                 iat = datetime.utcfromtimestamp(int(payload.get("iat")))
@@ -76,9 +75,7 @@ class JWTBackend:
 
         payload.update({"iat": iat, "exp": exp, "type": token_type})
 
-        return jwt.encode(
-            payload, self._private_key, algorithm=self._jwt_algorithm
-        ).decode()
+        return jwt.encode(payload, self._private_key, algorithm=JWT_ALGORITHM).decode()
 
     def create_access_token(self, payload: dict) -> str:
         return self._create_token(payload, "access", self._access_expiration)
