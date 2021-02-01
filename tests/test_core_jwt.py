@@ -6,9 +6,7 @@ from fastapi_auth.core.jwt import JWTBackend
 
 from .utils import MockCacheBackend, private_key, public_key
 
-jwt_backend = JWTBackend(
-    MockCacheBackend(), "RS256", private_key, public_key, 60, 60 * 10
-)
+jwt_backend = JWTBackend(MockCacheBackend(), private_key, public_key, 60, 60 * 10)
 
 sample_access_token = jwt_backend.create_access_token({"id": 1})
 sample_refresh_token = jwt_backend.create_refresh_token({})

@@ -45,13 +45,14 @@ auth_backend = MockAuthBackend("RS256", private_key, public_key)
 @pytest.fixture(autouse=True)
 def password_service_setup():
     PasswordService.setup(
-        UsersRepo(MockDatabaseBackend("test"), MockCacheBackend()),
+        UsersRepo(MockDatabaseBackend("test"), MockCacheBackend(), []),
         auth_backend,
         False,
         "RU",
         "http://127.0.0.1",
         "127.0.0.1",
         RECAPTCHA_SECRET,
+        None,
         None,
         None,
         None,

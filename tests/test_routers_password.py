@@ -26,6 +26,7 @@ router = get_password_router(
     None,
     None,
     None,
+    None,
 )
 
 app.include_router(router)

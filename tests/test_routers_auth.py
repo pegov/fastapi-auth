@@ -37,6 +37,7 @@ router = get_auth_router(
     None,
     None,
     None,
+    None,
 )
 
 
