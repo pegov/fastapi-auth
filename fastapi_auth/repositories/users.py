@@ -148,7 +148,11 @@ class UsersUsernameMixin(Base):
 
 class UsersPasswordMixin(Base):
     async def get_password_status(self, id: int) -> str:
-        pass
+        item = await self.get(id)
+        if item.get("provider") is not None and item.get("password") is None:
+            return "set"
+        else:
+            return "change"
 
     async def set_password(self, id: int, password: str) -> None:
         await self.update(id, {"password": password})

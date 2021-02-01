@@ -139,11 +139,8 @@ class PasswordService:
         return None
 
     async def password_status(self) -> dict:
-        item = await self._repo.get(self._user.id)
-        if item.get("provider") is not None and item.get("password") is None:
-            return {"status": "set"}
-        else:
-            return {"status": "change"}
+        status = await self._repo.get_password_status(self._user.id)
+        return {"status": status}
 
     async def password_set(self, data: dict) -> None:
         item = await self._repo.get(self._user.id)
