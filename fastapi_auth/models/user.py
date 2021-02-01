@@ -15,7 +15,7 @@ from fastapi_auth.core.config import (
     WRONG_USERNAMES,
     russian_letters,
 )
-from fastapi_auth.models.common import DefaultModel
+from fastapi_auth.models.common import DefaultModel, set_created_at, set_last_login
 
 
 def check_username(v: str) -> str:
@@ -49,14 +49,6 @@ def check_password(v: str, values) -> str:
             raise ValueError("password special")
 
     return v
-
-
-def set_created_at(v):
-    return datetime.utcnow()
-
-
-def set_last_login(v, values):
-    return values.get("created_at")
 
 
 class UserInRegister(BaseModel):

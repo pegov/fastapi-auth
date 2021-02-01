@@ -3,13 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, validator
 
-
-def set_created_at(v):
-    return datetime.utcnow()
-
-
-def set_last_login(v, values):
-    return values.get("created_at")
+from fastapi_auth.models.common import set_created_at, set_last_login
 
 
 class SocialInCreate(BaseModel):

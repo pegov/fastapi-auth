@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseConfig, BaseModel
 
 
@@ -6,6 +8,14 @@ def convert_field_to_camel_case(string: str) -> str:
         word if index == 0 else word.capitalize()
         for index, word in enumerate(string.split("_"))
     )
+
+
+def set_created_at(v):
+    return datetime.utcnow()
+
+
+def set_last_login(v, values):
+    return values.get("created_at")
 
 
 class DefaultModel(BaseModel):
