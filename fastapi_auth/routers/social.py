@@ -68,7 +68,6 @@ def get_router(
         try:
             tokens = await service.resolve_user(provider, sid, email)
             response = RedirectResponse("/")
-            # TODO: cookie key names
             response.set_cookie(
                 key=access_cookie_name,
                 value=tokens.get("access"),
