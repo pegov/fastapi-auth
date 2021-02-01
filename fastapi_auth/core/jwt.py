@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -53,10 +54,14 @@ class JWTBackend:
                 )
                 id = payload.get("id")
                 iat = datetime.utcfromtimestamp(int(payload.get("iat")))
-                active_blackout_exists = await self._active_blackout_exists(iat)
-                user_in_blacklist = await self._user_in_blacklist(id)
-                user_in_logout = await self._user_in_logout(id, iat)
-                if active_blackout_exists or user_in_blacklist or user_in_logout:
+                checks = await asyncio.gather(
+                    *(
+                        self._active_blackout_exists(iat),
+                        self._user_in_blacklist(id),
+                        self._user_in_logout(id, iat),
+                    )
+                )
+                if any(checks):
                     return None
 
                 return payload
