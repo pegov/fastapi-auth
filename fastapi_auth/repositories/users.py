@@ -32,16 +32,6 @@ class Base:
 
 
 class UsersCRUDMixin(Base):
-    # async def get(self, id: int, from_cache=True) -> Optional[dict]:
-    #     if from_cache:
-    #         cached_item = await self._cache.get(f"users:{id}")
-    #         if cached_item is not None:
-    #             return orjson.loads(cached_item)
-    #     item = await self._database.get(id)
-    #     if from_cache:
-    #         await self._cache.set(f"users:{id}", orjson.dumps(item), 60)
-    #     return item
-
     async def get(self, id: int) -> Optional[dict]:
         return await self._database.get(id)
 
@@ -64,15 +54,12 @@ class UsersCRUDMixin(Base):
     async def create(self, obj: dict) -> int:
         return await self._database.create(obj)
 
-    async def update(self, id: int, obj: dict, clear_cache=True) -> None:
+    async def update(self, id: int, obj: dict) -> None:
         await self._database.update(id, obj)
-        if clear_cache:
-            await self._cache.delete(f"users:{id}")
         return None
 
     async def delete(self, id: int) -> None:
         await self._database.delete(id)
-        await self._cache.delete(f"users:{id}")
         return None
 
     async def update_last_login(self, id: int) -> None:
