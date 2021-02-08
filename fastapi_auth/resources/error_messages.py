@@ -40,14 +40,14 @@ class ErrorMessages:
         else:
             self._full_messages = {
                 # models
-                "username length": f"Username can contain from {USERNAME_MIN_LENGTH} to {USERNAME_MAX_LENGTH} symbols",
-                "username special characters": "Username can't contain special characters",
+                "username length": f"Username must contain from {USERNAME_MIN_LENGTH} to {USERNAME_MAX_LENGTH} symbols",
+                "username special characters": "Username must not contain special characters",
                 "username wrong": "Wrong username",
-                "username different letters": "Username can be only in latin or cyrillic",
-                "password space": "Password can't contain spaces",
-                "password length": f"Password can contain from {PASSWORD_MIN_LENGTH} to {PASSWORD_MAX_LENGTH} symbols",
+                "username different letters": "Username must be only in latin or cyrillic",
+                "password space": "Password must not contain spaces",
+                "password length": f"Password must contain from {PASSWORD_MIN_LENGTH} to {PASSWORD_MAX_LENGTH} symbols",
                 "password mismatch": "Passwords mismatch",
-                "password special": "Password can contain only letters, numbers and #$%&'()*+,-./:;<=>?@[]^_`{|}~",
+                "password special": "Password must contain only letters, numbers and #$%&'()*+,-./:;<=>?@[]^_`{|}~",
                 # services
                 "existing email": "Email already exists",
                 "existing username": "Username already exists",
