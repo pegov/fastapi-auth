@@ -1,4 +1,3 @@
-import asyncio
 from typing import Iterable, Optional, Union
 
 from aioredis import Redis
@@ -27,9 +26,8 @@ class RedisBackend:
         return None
 
     async def setnx(self, key: str, value: Union[str, bytes, int], expire: int) -> None:
-        async with asyncio.Lock():  # not that important
-            await self._redis.setnx(key, value)
-            await self._redis.expire(key, expire)
+        await self._redis.setnx(key, value)
+        await self._redis.expire(key, expire)
         return None
 
     async def incr(self, key: str) -> str:
