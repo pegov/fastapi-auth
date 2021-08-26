@@ -1,78 +1,122 @@
-from typing import Callable
+from typing import Callable, Optional
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.exceptions import HTTPException
 
-from fastapi_auth.core.jwt import JWTBackend
-from fastapi_auth.core.user import User
-from fastapi_auth.repositories import UsersRepo
-from fastapi_auth.services import PasswordService
+from fastapi_auth.backend.captcha.base import BaseCaptchaBackend
+from fastapi_auth.backend.email.base import BaseEmailBackend
+from fastapi_auth.logging import logger
+from fastapi_auth.models.password import (
+    PasswordChange,
+    PasswordForgot,
+    PasswordHasPasswordResponse,
+    PasswordReset,
+    PasswordSet,
+)
+from fastapi_auth.repo import AuthRepo
+from fastapi_auth.services.password import (
+    get_id_for_password_reset,
+    reset_password,
+    set_password,
+)
+from fastapi_auth.user import User
+from fastapi_auth.utils.password import verify_password
 
 
 def get_router(
-    repo: UsersRepo,
-    auth_backend: JWTBackend,
+    repo: AuthRepo,
+    email_backend: BaseEmailBackend,
+    captcha_backend: Optional[BaseCaptchaBackend],
     get_authenticated_user: Callable,
     debug: bool,
-    language: str,
-    base_url: str,
-    site: str,
-    recaptcha_secret: str,
-    smtp_username: str,
-    smtp_password: str,
-    smtp_host: str,
-    smtp_tls: int,
-    display_name: str,
+    enable_captcha: bool,
 ):
-
-    PasswordService.setup(
-        repo,
-        auth_backend,
-        debug,
-        language,
-        base_url,
-        site,
-        recaptcha_secret,
-        smtp_username,
-        smtp_password,
-        smtp_host,
-        smtp_tls,
-        display_name,
-    )
-
     router = APIRouter()
 
-    @router.post("/forgot_password", name="auth:forgot_password")
-    async def forgot_password(*, request: Request):
-        data = await request.json()
-        ip = request.client.host
-        service = PasswordService()
-        return await service.forgot_password(data, ip)
-
-    @router.get("/password", name="auth:password_status")
-    async def password_status(*, user: User = Depends(get_authenticated_user)):
-        service = PasswordService(user)
-        return await service.password_status()
-
-    @router.post("/password", name="auth:password_set")
-    async def password_set(
-        *, request: Request, user: User = Depends(get_authenticated_user)
+    @router.post("/forgot_password")
+    async def password_forgot_password(
+        *,
+        data_in: PasswordForgot,
+        request: Request,
     ):
-        data = await request.json()
-        service = PasswordService(user)
-        return await service.password_set(data)
+        if (
+            not debug
+            and enable_captcha
+            and not await captcha_backend.validate_captcha(data_in.captcha)
+        ):
+            raise HTTPException(422, detail="captcha")
 
-    @router.post("/password/{token}", name="auth:password_reset")
-    async def password_reset(*, token: str, request: Request):
-        data = await request.json()
-        service = PasswordService()
-        return await service.password_reset(data, token)
+        item = await repo.get_by_email(data_in.email)
+        if item is None:
+            raise HTTPException(404)
 
-    @router.put("/password", name="auth:password_change")
-    async def password_change(
-        *, request: Request, user: User = Depends(get_authenticated_user)
+        # NOTE: allow users without password to reset password anyway
+
+        id = item.get("id")
+
+        if not await repo.is_password_reset_available(id):
+            raise HTTPException(429, detail="reset before")
+
+        email = item.get("email")
+
+        log = {
+            "action": "reset_password",
+            "id": id,
+            "email": email,
+            "ip": request.client.host,
+        }
+        logger.info(log)
+
+        await reset_password(repo, email_backend, id, email)
+
+    @router.get("/password", response_model=PasswordHasPasswordResponse)
+    async def password_has_password(
+        *,
+        user: User = Depends(get_authenticated_user),
     ):
-        data = await request.json()
-        service = PasswordService(user)
-        return await service.password_change(data)
+        item = await repo.get(user.id)
+        if item.get("provider") is not None and item.get("password") is None:
+            return {"has_password": False}
+        return {"has_password": True}
+
+    @router.post("/password")
+    async def password_set_password(
+        *,
+        user: User = Depends(get_authenticated_user),
+        data_in: PasswordSet,
+    ):
+        item = await repo.get(user.id)
+        if item.get("password") is not None:
+            raise HTTPException(422)
+
+        await set_password(repo, user.id, data_in)
+
+    @router.put("/password")
+    async def password_change_password(
+        *,
+        user: User = Depends(get_authenticated_user),
+        data_in: PasswordChange,
+    ):
+        item = await repo.get(user.id)
+        if item.get("password") is None:
+            raise HTTPException(422)
+
+        old_password_hash = item.get("password")
+        if not verify_password(data_in.old_password, old_password_hash):
+            raise HTTPException(401)
+
+        await set_password(repo, user.id, data_in)
+
+    @router.post("/password/{token}")
+    async def password_reset_password(
+        *,
+        token: str,
+        data_in: PasswordReset,
+    ):
+        id = await get_id_for_password_reset(repo, token)
+        if id is None:
+            raise HTTPException(404)
+
+        await set_password(repo, id, data_in)
 
     return router

@@ -1,161 +1,170 @@
-from typing import Callable, Dict
+from typing import Callable, Optional, Type
 
-from fastapi import APIRouter, Body, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.exceptions import HTTPException
+from fastapi.responses import ORJSONResponse
 
-from fastapi_auth.core.jwt import JWTBackend
-from fastapi_auth.core.user import User
-from fastapi_auth.repositories import UsersRepo
-from fastapi_auth.services import AuthService
-
-"""
-POST /register
-POST /login
-POST /logout
-POST /token
-POST /token/refresh
-GET /confirm
-POST /confirm
-POST /confirm/{token}
-"""
+from fastapi_auth.backend.auth.base import BaseJWTAuthentication
+from fastapi_auth.backend.captcha import BaseCaptchaBackend
+from fastapi_auth.backend.email import BaseEmailBackend
+from fastapi_auth.models.auth import (
+    BaseUserCreate,
+    BaseUserTokenPayload,
+    UserChangeUsername,
+    UserEmailConfirmationStatusResponse,
+    UserLogin,
+    UserRegister,
+    UserTokenPayload,
+    UserTokenRefreshResponse,
+)
+from fastapi_auth.repo import AuthRepo
+from fastapi_auth.services.auth import confirm_email, create, request_email_confirmation
+from fastapi_auth.user import User
+from fastapi_auth.utils.password import verify_password
+from fastapi_auth.utils.string import create_random_string, hash_string
 
 
 def get_router(
-    repo: UsersRepo,
-    auth_backend: JWTBackend,
+    repo: AuthRepo,
+    auth_backend: BaseJWTAuthentication,
+    captcha_backend: Optional[BaseCaptchaBackend],
+    email_backend: BaseEmailBackend,
     get_authenticated_user: Callable,
+    user_create_model: Type[BaseUserCreate],
+    user_token_payload_model: Type[BaseUserTokenPayload],
+    user_create_hook: Optional[Callable[[dict], None]],
     debug: bool,
-    language: str,
-    base_url: str,
-    site: str,
-    access_cookie_name: str,
-    refresh_cookie_name: str,
-    access_expiration: int,
-    refresh_expiration: int,
-    recaptcha_secret: str,
-    smtp_username: str,
-    smtp_password: str,
-    smtp_host: str,
-    smtp_tls: int,
-    display_name: str,
+    enable_captcha: bool,
 ) -> APIRouter:
-
-    AuthService.setup(
-        repo,
-        auth_backend,
-        debug,
-        language,
-        base_url,
-        site,
-        recaptcha_secret,
-        smtp_username,
-        smtp_password,
-        smtp_host,
-        smtp_tls,
-        display_name,
-    )
-
-    def set_access_token_in_response(response, token: str) -> None:
-        response.set_cookie(
-            key=access_cookie_name,
-            value=token,
-            secure=not debug,
-            httponly=True,
-            max_age=access_expiration,
-        )
-
-    def set_refresh_token_in_response(response, token: str) -> None:
-        response.set_cookie(
-            key=refresh_cookie_name,
-            value=token,
-            secure=not debug,
-            httponly=True,
-            max_age=refresh_expiration,
-        )
-
-    def set_tokens_in_response(response, tokens: Dict[str, str]) -> None:
-        access_token = tokens.get("access")
-        refresh_token = tokens.get("refresh")
-        set_access_token_in_response(response, access_token)
-        set_refresh_token_in_response(response, refresh_token)
-
     router = APIRouter()
 
-    @router.post("/register", name="auth:register")
-    async def register(*, request: Request, response: Response):
-        data = await request.json()
-        service = AuthService()
+    @router.post("/register")
+    async def auth_register(
+        *,
+        user_in: UserRegister,
+        response: Response,
+    ):
+        if (
+            not debug
+            and enable_captcha
+            and not await captcha_backend.validate_captcha(user_in.captcha)
+        ):
+            raise HTTPException(422, detail="captcha")
 
-        tokens = await service.register(data)
-        set_tokens_in_response(response, tokens)
-        return None
+        existing_email = await repo.get_by_email(user_in.email)
+        if existing_email is not None:
+            raise HTTPException(422, detail="existing email")
 
-    @router.post("/login", name="auth:login")
-    async def login(*, request: Request, response: Response):
-        data = await request.json()
-        service = AuthService()
+        existing_username = await repo.get_by_username(user_in.username)
+        if existing_username is not None:
+            raise HTTPException(422, detail="existing username")
 
-        ip = request.client.host
+        user_token_payload = await create(
+            repo,
+            user_in,
+            user_create_model,
+            user_create_hook,
+            user_token_payload_model,
+        )
 
-        tokens = await service.login(data, ip)
-        set_tokens_in_response(response, tokens)
-        return None
+        token = create_random_string()
+        token_hash = hash_string(token)
+        await repo.request_email_confirmation(user_in.email, token_hash)
+        await email_backend.send_confirmation_email(user_in.email, token)
 
-    @router.post("/logout", name="auth:logout")
-    async def logout(*, response: Response):
-        response.delete_cookie(access_cookie_name)
-        response.delete_cookie(refresh_cookie_name)
-        return None
+        access_token, refresh_token = auth_backend.create_tokens(
+            user_token_payload.dict()
+        )
+        auth_backend.set_login_response(response, access_token, refresh_token)
 
-    @router.post("/token", name="auth:token")
-    async def token(*, user: User = Depends(get_authenticated_user)):
+    @router.post("/login")
+    async def auth_login(
+        *,
+        request: Request,
+        user_in: UserLogin,
+        response: Response,
+    ):
+        if await repo.ip_has_timeout(request.client.host):
+            raise HTTPException(429, detail="too many requests")
+
+        user = await repo.get_by_login(user_in.login)
+        if user is None:
+            raise HTTPException(422, detail="invalid username")
+
+        password_hash = user.get("password")
+        if not verify_password(user_in.password, password_hash):
+            raise HTTPException(401)
+
+        user_token_payload = UserTokenPayload(**user)
+        access_token, refresh_token = auth_backend.create_tokens(
+            user_token_payload.dict()
+        )
+        auth_backend.set_login_response(response, access_token, refresh_token)
+
+    @router.post("/logout")
+    async def auth_logout(
+        *,
+        response: Response,
+    ):
+        auth_backend.set_logout_response(response)
+
+    @router.post("/token", response_model=UserTokenPayload)
+    async def token(
+        *,
+        user: User = Depends(get_authenticated_user),
+    ):
         return user.data
 
-    @router.post("/token/refresh", name="auth:refresh_access_token")
-    async def refresh_access_token(
+    @router.post("/token/refresh", response_model=UserTokenRefreshResponse)
+    async def auth_refresh_access_token(
         *,
         request: Request,
         response: Response,
     ):
-        service = AuthService()
-        refresh_token = request.cookies.get(refresh_cookie_name)
+        refresh_token = auth_backend.get_refresh_token_from_request(request)
         if refresh_token is None:
             raise HTTPException(401)
 
-        access_token = await service.refresh_access_token(refresh_token)
-        set_access_token_in_response(response, access_token)
-        return {"access": access_token}
+        access_token = await auth_backend.refresh_access_token(refresh_token)
+        if access_token is None:
+            raise HTTPException(401)
 
-    @router.get("/confirm", name="auth:get_email_confirmation_status")
-    async def get_email_confirmation_status(
-        *, user: User = Depends(get_authenticated_user)
-    ):
-        service = AuthService(user)
-        return await service.get_email_confirmation_status()
+        auth_backend.set_access_cookie(response, access_token)
+        return ORJSONResponse({"access_token": access_token})
 
-    @router.post("/confirm", name="auth:request_email_confirmation")
-    async def request_email_confirmation(
-        *, user: User = Depends(get_authenticated_user)
-    ):
-        service = AuthService(user)
-        return await service.request_email_confirmation()
-
-    @router.post("/confirm/{token}", name="auth:confirm_email")
-    async def confirm_email(*, token: str):
-        service = AuthService()
-        return await service.confirm_email(token)
-
-    @router.post("/{id}/change_username", name="auth:change_username")
-    async def change_username(
+    @router.get("/confirm", response_model=UserEmailConfirmationStatusResponse)
+    async def auth_get_email_confirmation_status(
         *,
-        id: int,
-        username: str = Body("", embed=True),
         user: User = Depends(get_authenticated_user),
     ):
-        service = AuthService(user)
-        if user.id == id or user.is_admin:
-            return await service.change_username(id, username)
-        else:
-            raise HTTPException(403)
+        return await repo.get(user.id)
+
+    @router.post("/confirm")
+    async def auth_request_email_confirmation(
+        *,
+        user: User = Depends(get_authenticated_user),
+    ):
+        item = await repo.get(user.id)
+        if item.get("confirmed"):
+            raise HTTPException(400)
+
+        if not await repo.is_email_confirmation_available(user.id):
+            raise HTTPException(429, detail="too many requests")
+
+        await request_email_confirmation(repo, email_backend, item.get("email"))
+
+    @router.post("/confirm/{token}")
+    async def auth_confirm_email(*, token: str):
+        success = await confirm_email(repo, token)
+        if not success:
+            raise HTTPException(400)
+
+    @router.post("{id}/change_username")
+    async def auth_change_username(
+        *,
+        user: User = Depends(get_authenticated_user),
+        data_in: UserChangeUsername,
+    ):
+        await repo.change_username(user.id, data_in.username)
 
     return router
