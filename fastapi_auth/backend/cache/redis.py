@@ -6,11 +6,11 @@ from .base import BaseCacheBackend
 
 
 class RedisBackend(BaseCacheBackend):
-    def __init__(self, con: Optional[Redis]) -> None:
-        self._redis = con
+    def __init__(self, redis: Optional[Redis]) -> None:
+        self._redis = redis
 
-    def set_con(self, con: Redis) -> None:
-        self._redis = con
+    def set_redis(self, redis: Redis) -> None:
+        self._redis = redis
 
     async def get(self, key: str) -> str:
         return await self._redis.get(key)
