@@ -46,6 +46,13 @@ def get_router(
         ):
             raise HTTPException(422, detail="captcha")
 
+        log = {
+            "action": "reset_password",
+            "email": data_in.email,
+            "ip": request.client.host,
+        }
+        logger.info(log)
+
         item = await repo.get_by_email(data_in.email)
         if item is None:
             raise HTTPException(404)
@@ -58,14 +65,6 @@ def get_router(
             raise HTTPException(429, detail="reset before")
 
         email = item.get("email")
-
-        log = {
-            "action": "reset_password",
-            "id": id,
-            "email": email,
-            "ip": request.client.host,
-        }
-        logger.info(log)
 
         await reset_password(repo, email_backend, id, email)
 
