@@ -18,10 +18,10 @@ from fastapi_auth.models.auth import (
     UserTokenRefreshResponse,
 )
 from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.auth import confirm_email, create, request_email_confirmation
+from fastapi_auth.services.auth import create, request_email_confirmation
 from fastapi_auth.user import User
 from fastapi_auth.utils.password import verify_password
-from fastapi_auth.utils.string import create_random_string, hash_string
+from fastapi_auth.utils.string import hash_string
 
 
 def get_router(
@@ -67,10 +67,7 @@ def get_router(
             user_token_payload_model,
         )
 
-        token = create_random_string()
-        token_hash = hash_string(token)
-        await repo.request_email_confirmation(user_in.email, token_hash)
-        await email_backend.send_confirmation_email(user_in.email, token)
+        await request_email_confirmation(repo, email_backend, user_in.email)
 
         access_token, refresh_token = auth_backend.create_tokens(
             user_token_payload.dict()
@@ -155,8 +152,8 @@ def get_router(
 
     @router.post("/confirm/{token}")
     async def auth_confirm_email(*, token: str):
-        success = await confirm_email(repo, token)
-        if not success:
+        token_hash = hash_string(token)
+        if not await repo.confirm_email(token_hash):
             raise HTTPException(400)
 
     @router.post("{id}/change_username")

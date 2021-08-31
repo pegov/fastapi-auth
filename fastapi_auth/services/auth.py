@@ -1,7 +1,7 @@
 import asyncio
 from typing import Callable, Optional, Type
 
-from fastapi_auth.backend.email import BaseEmailBackend
+from fastapi_auth.backend.email.base import BaseEmailBackend
 from fastapi_auth.models.auth import BaseUserCreate, BaseUserTokenPayload, UserRegister
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.utils.password import get_password_hash
@@ -35,8 +35,3 @@ async def request_email_confirmation(
     token_hash = hash_string(token)
     await repo.request_email_confirmation(email, token_hash)
     await email_backend.send_confirmation_email(email, token)
-
-
-async def confirm_email(repo: AuthRepo, token: str) -> bool:
-    token_hash = hash_string(token)
-    return await repo.confirm_email(token_hash)
