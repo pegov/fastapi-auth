@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from fastapi_auth.backend.auth import BaseJWTAuthentication
 from fastapi_auth.backend.oauth import BaseOAuthProvider
+from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import BaseUserTokenPayload
 from fastapi_auth.models.oauth import BaseOAuthCreate
 from fastapi_auth.repo import AuthRepo
@@ -62,18 +63,20 @@ def get_router(
 
         if email is None:
             # NOTE: was 400
-            raise HTTPException(422, detail="no email")
+            raise HTTPException(422, detail=HTTPExceptionDetail.NO_EMAIL)
 
         existing_social_user = await repo.get_by_social(provider_name, sid)
         if existing_social_user is not None:
             item = existing_social_user
             if not item.get("active"):
-                raise HTTPException(401, detail="ban")
+                raise HTTPException(401)
         else:
             existing_email = await repo.get_by_email(email)
             if existing_email is not None:
                 # NOTE: was 401
-                raise HTTPException(422, detail="email already exists")
+                raise HTTPException(
+                    422, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS
+                )
 
             username = await resolve_username(repo, email)
 

@@ -7,6 +7,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi_auth.backend.auth.base import BaseJWTAuthentication
 from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
+from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
     BaseUserCreate,
     BaseUserTokenPayload,
@@ -49,15 +50,15 @@ def get_router(
             and enable_captcha
             and not await captcha_backend.validate_captcha(user_in.captcha)
         ):
-            raise HTTPException(422, detail="captcha")
+            raise HTTPException(422, detail=HTTPExceptionDetail.CAPTCHA_IS_NOT_VALID)
 
         existing_email = await repo.get_by_email(user_in.email)
         if existing_email is not None:
-            raise HTTPException(422, detail="existing email")
+            raise HTTPException(422, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS)
 
         existing_username = await repo.get_by_username(user_in.username)
         if existing_username is not None:
-            raise HTTPException(422, detail="existing username")
+            raise HTTPException(422, detail=HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
 
         user_token_payload = await create(
             repo,
@@ -82,11 +83,11 @@ def get_router(
         response: Response,
     ):
         if await repo.ip_has_timeout(request.client.host):
-            raise HTTPException(429, detail="too many requests")
+            raise HTTPException(429)
 
         user = await repo.get_by_login(user_in.login)
         if user is None:
-            raise HTTPException(422, detail="invalid username")
+            raise HTTPException(404)
 
         password_hash = user.get("password")
         if not verify_password(user_in.password, password_hash):
@@ -143,10 +144,12 @@ def get_router(
     ):
         item = await repo.get(user.id)
         if item.get("confirmed"):
-            raise HTTPException(400)
+            raise HTTPException(
+                422, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_CONFIRMED
+            )
 
         if not await repo.is_email_confirmation_available(user.id):
-            raise HTTPException(429, detail="too many requests")
+            raise HTTPException(429)
 
         await request_email_confirmation(repo, email_backend, item.get("email"))
 
@@ -154,7 +157,7 @@ def get_router(
     async def auth_confirm_email(*, token: str):
         token_hash = hash_string(token)
         if not await repo.confirm_email(token_hash):
-            raise HTTPException(400)
+            raise HTTPException(404)
 
     @router.post("{id}/change_username")
     async def auth_change_username(
