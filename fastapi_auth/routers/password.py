@@ -16,7 +16,7 @@ from fastapi_auth.models.password import (
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.services.password import (
     get_id_for_password_reset,
-    reset_password,
+    request_password_reset,
     set_password,
 )
 from fastapi_auth.user import User
@@ -66,7 +66,7 @@ def get_router(
 
         email = item.get("email")
 
-        await reset_password(repo, email_backend, id, email)
+        await request_password_reset(repo, email_backend, id, email)
 
     @router.get("/password", response_model=PasswordHasPasswordResponse)
     async def password_has_password(

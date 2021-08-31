@@ -37,7 +37,7 @@ class AuthBase:
         password_reset_max: int = 2,
         password_reset_timeout: int = 60 * 60,
         password_reset_lifetime: int = 60 * 60,
-        email_confirmation_ratelimit: int = 2,
+        verification_ratelimit: int = 2,
     ) -> None:
         self._db = db
         self._cache = cache
@@ -51,7 +51,7 @@ class AuthBase:
         self._password_reset_timeout = password_reset_timeout
         self._password_reset_lifetime = password_reset_lifetime
 
-        self._email_confirmation_ratelimit = email_confirmation_ratelimit
+        self._verification_ratelimit = verification_ratelimit
 
 
 class AuthCRUDMixin(AuthBase):
@@ -114,15 +114,13 @@ class AuthBruteforceProtectionMixin(AuthBase):
 class AuthEmailMixin(AuthCRUDMixin):
     async def is_email_confirmation_available(self, id: int) -> bool:
         key = f"users:confirm:count:{id}"
-        return await _reached_ratelimit(
-            self, key, self._email_confirmation_ratelimit, 1800
-        )
+        return await _reached_ratelimit(self, key, self._verification_ratelimit, 1800)
 
-    async def request_email_confirmation(self, email: str, token_hash: str) -> None:
-        await self._db.request_email_confirmation(email, token_hash)
+    async def request_verification(self, email: str, token_hash: str) -> None:
+        await self._db.request_verification(email, token_hash)
 
-    async def confirm_email(self, token_hash: str) -> bool:
-        return await self._db.confirm_email(token_hash)
+    async def verify(self, token_hash: str) -> bool:
+        return await self._db.verify(token_hash)
 
 
 class AuthUsernameMixin(AuthCRUDMixin):

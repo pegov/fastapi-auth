@@ -7,7 +7,7 @@ from fastapi_auth.utils.password import get_password_hash
 from fastapi_auth.utils.string import create_random_string, hash_string
 
 
-async def reset_password(
+async def request_password_reset(
     repo: AuthRepo, email_backend: BaseEmailBackend, id: int, email: str
 ) -> None:
 
@@ -16,7 +16,7 @@ async def reset_password(
 
     await repo.set_password_reset_token(id, token_hash)
 
-    await email_backend.send_forgot_password_email(email, token)
+    await email_backend.request_password_reset(email, token)
 
 
 async def set_password(

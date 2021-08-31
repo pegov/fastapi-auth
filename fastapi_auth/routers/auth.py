@@ -9,17 +9,16 @@ from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
-    BaseUserCreate,
     BaseUserTokenPayload,
     UserChangeUsername,
-    UserEmailConfirmationStatusResponse,
     UserLogin,
     UserRegister,
     UserTokenPayload,
     UserTokenRefreshResponse,
+    UserVerificationStatusResponse,
 )
 from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.auth import create, request_email_confirmation
+from fastapi_auth.services.auth import create, request_verification
 from fastapi_auth.user import User
 from fastapi_auth.utils.password import verify_password
 from fastapi_auth.utils.string import hash_string
@@ -31,7 +30,6 @@ def get_router(
     captcha_backend: Optional[BaseCaptchaBackend],
     email_backend: BaseEmailBackend,
     get_authenticated_user: Callable,
-    user_create_model: Type[BaseUserCreate],
     user_token_payload_model: Type[BaseUserTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
     debug: bool,
@@ -63,12 +61,11 @@ def get_router(
         user_token_payload = await create(
             repo,
             user_in,
-            user_create_model,
             user_create_hook,
             user_token_payload_model,
         )
 
-        await request_email_confirmation(repo, email_backend, user_in.email)
+        await request_verification(repo, email_backend, user_in.email)
 
         access_token, refresh_token = auth_backend.create_tokens(
             user_token_payload.dict()
@@ -133,33 +130,33 @@ def get_router(
         auth_backend.set_access_cookie(response, access_token)
         return ORJSONResponse({"access_token": access_token})
 
-    @router.get("/confirm", response_model=UserEmailConfirmationStatusResponse)
-    async def auth_get_email_confirmation_status(
+    @router.get("/verify", response_model=UserVerificationStatusResponse)
+    async def auth_get_verification_status(
         *,
         user: User = Depends(get_authenticated_user),
     ):
         return await repo.get(user.id)
 
-    @router.post("/confirm")
-    async def auth_request_email_confirmation(
+    @router.post("/verify")
+    async def auth_request_verification(
         *,
         user: User = Depends(get_authenticated_user),
     ):
         item = await repo.get(user.id)
-        if item.get("confirmed"):
+        if item.get("verified"):
             raise HTTPException(
-                422, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_CONFIRMED
+                422, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_VERIFIED
             )
 
         if not await repo.is_email_confirmation_available(user.id):
             raise HTTPException(429)
 
-        await request_email_confirmation(repo, email_backend, item.get("email"))
+        await request_verification(repo, email_backend, item.get("email"))
 
-    @router.post("/confirm/{token}")
-    async def auth_confirm_email(*, token: str):
+    @router.post("/verify/{token}")
+    async def auth_verify(*, token: str):
         token_hash = hash_string(token)
-        if not await repo.confirm_email(token_hash):
+        if not await repo.verify(token_hash):
             raise HTTPException(404)
 
     @router.post("{id}/change_username")

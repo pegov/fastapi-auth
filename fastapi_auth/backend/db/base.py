@@ -29,11 +29,11 @@ class BaseDBBackend:
     async def _count(self, query: Optional[dict]) -> int:
         raise NotImplementedError
 
-    async def request_email_confirmation(self, email: str, token_hash: str) -> None:
+    async def request_verification(self, email: str, token_hash: str) -> None:
         """Create email confirmation"""
         raise NotImplementedError
 
-    async def confirm_email(self, token_hash: str) -> bool:
+    async def verify(self, token_hash: str) -> bool:
         """If success, return True."""
         raise NotImplementedError
 

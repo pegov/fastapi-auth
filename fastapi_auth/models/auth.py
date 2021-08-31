@@ -37,18 +37,12 @@ class UserTokenPayload(BaseUserTokenPayload):
     roles: List[str] = []
 
 
-class BaseUserCreate(BaseModel):
+class UserCreate(BaseModel):
     email: str
     username: str
     password: str
-
-
-class UserCreate(BaseUserCreate):
-    # email: str
-    # username: str
-    # password: str
     active: bool = True
-    confirmed: bool = False
+    verified: bool = False
     roles: List[str] = []
 
     created_at: Optional[datetime] = None
@@ -66,9 +60,9 @@ class UserTokenRefreshResponse(BaseModel):
     access_token: str
 
 
-class UserEmailConfirmationStatusResponse(BaseModel):
+class UserVerificationStatusResponse(BaseModel):
     email: str
-    confirmed: bool
+    verified: bool
 
 
 class UserChangeUsername(BaseModel):

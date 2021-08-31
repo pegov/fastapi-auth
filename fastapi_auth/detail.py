@@ -3,4 +3,4 @@ class HTTPExceptionDetail:
     EMAIL_ALREADY_EXISTS = "email already exists"
     USERNAME_ALREADY_EXISTS = "username already exists"
     NO_EMAIL = "no email"
-    EMAIL_WAS_ALREADY_CONFIRMED = "email was already confirmed"
+    EMAIL_WAS_ALREADY_VERIFIED = "email was already verified"

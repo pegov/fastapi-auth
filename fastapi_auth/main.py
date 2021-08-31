@@ -7,13 +7,7 @@ from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.backend.oauth import BaseOAuthProvider
 from fastapi_auth.backend.validator import BaseUserValidator
-from fastapi_auth.models.auth import (
-    BaseUserCreate,
-    BaseUserTokenPayload,
-    UserCreate,
-    UserTokenPayload,
-)
-from fastapi_auth.models.oauth import BaseOAuthCreate, OAuthCreate
+from fastapi_auth.models.auth import BaseUserTokenPayload, UserTokenPayload
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.routers import (
     get_admin_router,
@@ -62,10 +56,8 @@ class AuthApp(Auth):
         email_backend: BaseEmailBackend,
         captcha_backend: Optional[BaseCaptchaBackend],
         oauth_providers: Iterable[BaseOAuthProvider] = [],
-        user_create_model: Type[BaseUserCreate] = UserCreate,
         user_token_payload_model: Type[BaseUserTokenPayload] = UserTokenPayload,
         user_model_validator: Optional[BaseUserValidator] = None,
-        oauth_create_model: Type[BaseOAuthCreate] = OAuthCreate,
         user_create_hook: Optional[Callable[[dict], None]] = None,
         enable_register_captcha: bool = True,
         enable_forgot_password_captcha: bool = False,
@@ -78,12 +70,9 @@ class AuthApp(Auth):
         self._captcha_backend = captcha_backend
         self._oauth_providers = oauth_providers
 
-        self._user_create_model = user_create_model
         self._user_token_payload_model = user_token_payload_model
         if user_model_validator is not None:
             Validator.set(user_model_validator)
-
-        self._oauth_create_model = oauth_create_model
 
         self._user_create_hook = user_create_hook
 
@@ -101,7 +90,6 @@ class AuthApp(Auth):
             captcha_backend=self._captcha_backend,
             email_backend=self._email_backend,
             get_authenticated_user=self.get_authenticated_user,
-            user_create_model=self._user_create_model,
             user_token_payload_model=self._user_token_payload_model,
             user_create_hook=self._user_create_hook,
             debug=self._debug,
@@ -125,7 +113,6 @@ class AuthApp(Auth):
             repo=self._repo,
             auth_backend=self._auth_backend,
             oauth_providers=self._oauth_providers,
-            oauth_create_model=self._oauth_create_model,
             user_token_payload_model=self._user_token_payload_model,
             user_create_hook=self._user_create_hook,
             origin=self._origin,

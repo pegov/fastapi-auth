@@ -19,7 +19,6 @@ class AdminBlackout(BaseModel):
     ts: int
 
 
-# TODO: custom
 class AdminUser(DefaultModel):
     id: int
     email: str
@@ -27,4 +26,4 @@ class AdminUser(DefaultModel):
     provider: Optional[str]
     sid: Optional[str]
     active: bool
-    confirmed: bool
+    verified: bool

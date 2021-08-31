@@ -8,7 +8,7 @@ from fastapi_auth.backend.auth import BaseJWTAuthentication
 from fastapi_auth.backend.oauth import BaseOAuthProvider
 from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import BaseUserTokenPayload
-from fastapi_auth.models.oauth import BaseOAuthCreate
+from fastapi_auth.models.oauth import OAuthCreate
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.services.oauth import resolve_username
 from fastapi_auth.utils.string import create_random_state
@@ -18,7 +18,6 @@ def get_router(
     repo: AuthRepo,
     auth_backend: BaseJWTAuthentication,
     oauth_providers: Iterable[BaseOAuthProvider],
-    oauth_create_model: Type[BaseOAuthCreate],
     user_token_payload_model: Type[BaseUserTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
     origin: str,
@@ -80,7 +79,7 @@ def get_router(
 
             username = await resolve_username(repo, email)
 
-            user = oauth_create_model(
+            user = OAuthCreate(
                 **{
                     "email": email,
                     "username": username,

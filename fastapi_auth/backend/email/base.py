@@ -1,6 +1,6 @@
 class BaseEmailBackend:
-    async def send_confirmation_email(self, email: str, token: str) -> None:
+    async def request_verification(self, email: str, token: str) -> None:
         raise NotImplementedError
 
-    async def send_forgot_password_email(self, email: str, token: str) -> None:
+    async def request_password_reset(self, email: str, token: str) -> None:
         raise NotImplementedError

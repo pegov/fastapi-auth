@@ -6,20 +6,13 @@ from pydantic import BaseModel, EmailStr, validator
 from fastapi_auth.models.common import set_created_at, set_last_login
 
 
-class BaseOAuthCreate(BaseModel):
+class OAuthCreate(BaseModel):
     email: EmailStr
     username: str
     provider: str
     sid: str
-
-
-class OAuthCreate(BaseOAuthCreate):
-    email: EmailStr
-    # username: str
-    # provider: str
-    # sid: str
     active: bool = True
-    confirmed: bool = True
+    verified: bool = True
     roles: List[str] = []
 
     created_at: Optional[datetime] = None

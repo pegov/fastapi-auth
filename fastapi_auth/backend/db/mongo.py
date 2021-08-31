@@ -23,8 +23,8 @@ class MongoBackend(BaseDBBackend):
         self._client = client
         self._db: AsyncIOMotorDatabase = client[self._database_name]
         self._users: AsyncIOMotorCollection = self._db["users"]
-        self._email_confirmations: AsyncIOMotorCollection = self._db[
-            "email_confirmations"
+        self._email_verifications: AsyncIOMotorCollection = self._db[
+            "email_verifications"
         ]
         self._counters: AsyncIOMotorCollection = self._db["counters"]
         self._settings: AsyncIOMotorCollection = self._db["settings"]
@@ -70,22 +70,22 @@ class MongoBackend(BaseDBBackend):
     async def count(self, query: Optional[dict] = None) -> int:
         return await self._users.count_documents(query)
 
-    async def request_email_confirmation(self, email: str, token_hash: str) -> None:
-        await self._email_confirmations.update_one(
+    async def request_verification(self, email: str, token_hash: str) -> None:
+        await self._email_verifications.update_one(
             {"email": email}, {"$set": {"token": token_hash}}, upsert=True
         )
         return None
 
-    async def confirm_email(self, token_hash: str) -> bool:
-        ec = await self._email_confirmations.find_one({"token": token_hash})
+    async def verify(self, token_hash: str) -> bool:
+        ec = await self._email_verifications.find_one({"token": token_hash})
         if ec is not None:
             email = ec.get("email")
             async with await self._client.start_session() as session:
                 async with session.start_transaction():
                     await self._users.update_one(
-                        {"email": email}, {"$set": {"confirmed": True}}
+                        {"email": email}, {"$set": {"verified": True}}
                     )
-                    await self._email_confirmations.delete_many({"email": email})
+                    await self._email_verifications.delete_many({"email": email})
             return True
         else:
             return False
