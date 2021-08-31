@@ -1,10 +1,10 @@
-from fastapi_auth.backend.validator import BaseUserValidator
+from fastapi_auth.backend.validator import BaseUserValidator, StandardUserValidator
 
 
 class Validator:
-    _validator: BaseUserValidator
+    _validator: BaseUserValidator = StandardUserValidator()
 
     # NOTE: setup again.
     @classmethod
-    def setup(cls, validator: BaseUserValidator) -> None:
+    def set(cls, validator: BaseUserValidator) -> None:
         cls._validator = validator

@@ -7,7 +7,6 @@ from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.backend.oauth import BaseOAuthProvider
 from fastapi_auth.backend.validator import BaseUserValidator
-from fastapi_auth.backend.validator.standard import StandardUserValidator
 from fastapi_auth.models.auth import (
     BaseUserCreate,
     BaseUserTokenPayload,
@@ -65,7 +64,7 @@ class AuthApp(Auth):
         oauth_providers: Iterable[BaseOAuthProvider] = [],
         user_create_model: Type[BaseUserCreate] = UserCreate,
         user_token_payload_model: Type[BaseUserTokenPayload] = UserTokenPayload,
-        user_model_validator: BaseUserValidator = StandardUserValidator(),
+        user_model_validator: Optional[BaseUserValidator] = None,
         oauth_create_model: Type[BaseOAuthCreate] = OAuthCreate,
         user_create_hook: Optional[Callable[[dict], None]] = None,
         enable_register_captcha: bool = True,
@@ -81,7 +80,8 @@ class AuthApp(Auth):
 
         self._user_create_model = user_create_model
         self._user_token_payload_model = user_token_payload_model
-        Validator.setup(user_model_validator)
+        if user_model_validator is not None:
+            Validator.set(user_model_validator)
 
         self._oauth_create_model = oauth_create_model
 
