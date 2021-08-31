@@ -89,6 +89,9 @@ def get_router(
         if user is None:
             raise HTTPException(404)
 
+        if not user.get("active"):
+            raise HTTPException(401)
+
         password_hash = user.get("password")
         if not verify_password(user_in.password, password_hash):
             raise HTTPException(401)
