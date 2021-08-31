@@ -4,8 +4,8 @@ import os
 from passlib.pwd import genword
 
 
-def create_random_string(lenght: int = 256) -> str:
-    return genword(length=lenght)
+def create_random_string(length: int = 256) -> str:
+    return genword(length=length)
 
 
 def hash_string(s: str) -> str:
