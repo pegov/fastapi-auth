@@ -14,13 +14,10 @@ from fastapi_auth.models.password import (
     PasswordSet,
 )
 from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.password import (
-    get_id_for_password_reset,
-    request_password_reset,
-    set_password,
-)
+from fastapi_auth.services.password import set_password
 from fastapi_auth.user import User
 from fastapi_auth.utils.password import verify_password
+from fastapi_auth.utils.string import create_random_string, hash_string
 
 
 def get_router(
@@ -66,7 +63,11 @@ def get_router(
 
         email = item.get("email")
 
-        await request_password_reset(repo, email_backend, id, email)
+        token = create_random_string()
+        token_hash = hash_string(token)
+
+        await repo.set_password_reset_token(id, token_hash)
+        await email_backend.request_password_reset(email, token)
 
     @router.get("/password", response_model=PasswordHasPasswordResponse)
     async def password_has_password(
@@ -112,7 +113,8 @@ def get_router(
         token: str,
         data_in: PasswordReset,
     ):
-        id = await get_id_for_password_reset(repo, token)
+        token_hash = hash_string(token)
+        id = await repo.get_id_for_password_reset(token_hash)
         if id is None:
             raise HTTPException(404)
 

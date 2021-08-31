@@ -1,3 +1,4 @@
+import asyncio
 from typing import Callable, Optional, Type
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -11,6 +12,7 @@ from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
     BaseUserTokenPayload,
     UserChangeUsername,
+    UserCreate,
     UserLogin,
     UserRegister,
     UserTokenPayload,
@@ -18,9 +20,9 @@ from fastapi_auth.models.auth import (
     UserVerificationStatusResponse,
 )
 from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.auth import create, request_verification
+from fastapi_auth.services.auth import request_verification
 from fastapi_auth.user import User
-from fastapi_auth.utils.password import verify_password
+from fastapi_auth.utils.password import get_password_hash, verify_password
 from fastapi_auth.utils.string import hash_string
 
 
@@ -58,14 +60,24 @@ def get_router(
         if existing_username is not None:
             raise HTTPException(422, detail=HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
 
-        user_token_payload = await create(
-            repo,
-            user_in,
-            user_create_hook,
-            user_token_payload_model,
-        )
+        password_hash = get_password_hash(user_in.password1)
+        user_obj = UserCreate(**user_in.dict(), password=password_hash).dict()
+        id = await repo.create(user_obj)
 
-        await request_verification(repo, email_backend, user_in.email)
+        if user_create_hook is not None:
+            user_obj.update({"id": id})
+            if asyncio.iscoroutinefunction(user_create_hook):
+                await user_create_hook(user_obj)  # type: ignore
+            else:
+                user_create_hook(user_obj)
+
+        user_token_payload = user_token_payload_model(**user_obj)
+
+        try:
+            await request_verification(repo, email_backend, user_in.email)
+        except Exception:
+            # TODO
+            pass
 
         access_token, refresh_token = auth_backend.create_tokens(
             user_token_payload.dict()
