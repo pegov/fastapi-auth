@@ -46,7 +46,7 @@ def get_router(
 
         return RedirectResponse(oauth_uri)
 
-    @router.post("/{provider_name}")
+    @router.get("/{provider_name}/callback")
     async def social_callback(provider_name: str, request: Request):
         provider = get_provider(provider_name)
 
