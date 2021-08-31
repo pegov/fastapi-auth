@@ -24,7 +24,7 @@ class RedisBackend(BaseCacheBackend):
     async def set(
         self, key: str, value: Union[str, bytes, int], expire: int = 0
     ) -> None:
-        await self._redis.set(key, value, expire=expire)
+        await self._redis.set(key, value, ex=expire)
 
     async def setnx(self, key: str, value: Union[str, bytes, int], expire: int) -> None:
         await self._redis.set(key, value, ex=expire, nx=True)
