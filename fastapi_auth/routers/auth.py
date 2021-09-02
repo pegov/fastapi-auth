@@ -180,7 +180,7 @@ def get_router(
         if not await repo.verify(token_hash):
             raise HTTPException(404)
 
-    @router.post("{id}/change_username", name="auth:change_username")
+    @router.post("/change_username", name="auth:change_username")
     async def auth_change_username(
         *,
         user: User = Depends(get_authenticated_user),
