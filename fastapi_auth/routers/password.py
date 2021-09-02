@@ -30,7 +30,7 @@ def get_router(
 ):
     router = APIRouter()
 
-    @router.post("/forgot_password")
+    @router.post("/forgot_password", name="password:forgot_password")
     async def password_forgot_password(
         *,
         data_in: PasswordForgot,
@@ -69,7 +69,11 @@ def get_router(
         await repo.set_password_reset_token(id, token_hash)
         await email_backend.request_password_reset(email, token)
 
-    @router.get("/password", response_model=PasswordHasPasswordResponse)
+    @router.get(
+        "/password",
+        response_model=PasswordHasPasswordResponse,
+        name="password:has_password",
+    )
     async def password_has_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -79,7 +83,7 @@ def get_router(
             return {"has_password": False}
         return {"has_password": True}
 
-    @router.post("/password")
+    @router.post("/password", name="password:set_password")
     async def password_set_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -91,7 +95,7 @@ def get_router(
 
         await set_password(repo, user.id, data_in)
 
-    @router.put("/password")
+    @router.put("/password", name="password:change_password")
     async def password_change_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -107,7 +111,7 @@ def get_router(
 
         await set_password(repo, user.id, data_in)
 
-    @router.post("/password/{token}")
+    @router.post("/password/{token}", name="password:reset_password")
     async def password_reset_password(
         *,
         token: str,

@@ -8,7 +8,7 @@ from fastapi_auth.validator import Validator
 
 class PasswordForgot(DefaultModel):
     email: str
-    captcha: Optional[str]
+    captcha: Optional[str] = None
 
 
 class PasswordSet(DefaultModel):

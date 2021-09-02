@@ -34,12 +34,13 @@ def get_router(
     get_authenticated_user: Callable,
     user_token_payload_model: Type[BaseUserTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
+    change_username_callback: Optional[Callable[[int, str], None]],
     debug: bool,
     enable_captcha: bool,
 ) -> APIRouter:
     router = APIRouter()
 
-    @router.post("/register")
+    @router.post("/register", name="auth:register")
     async def auth_register(
         *,
         user_in: UserRegister,
@@ -63,9 +64,9 @@ def get_router(
         password_hash = get_password_hash(user_in.password1)
         user_obj = UserCreate(**user_in.dict(), password=password_hash).dict()
         id = await repo.create(user_obj)
+        user_obj.update({"id": id})
 
         if user_create_hook is not None:
-            user_obj.update({"id": id})
             if asyncio.iscoroutinefunction(user_create_hook):
                 await user_create_hook(user_obj)  # type: ignore
             else:
@@ -84,7 +85,7 @@ def get_router(
         )
         auth_backend.set_login_response(response, access_token, refresh_token)
 
-    @router.post("/login")
+    @router.post("/login", name="auth:login")
     async def auth_login(
         *,
         request: Request,
@@ -111,21 +112,25 @@ def get_router(
         )
         auth_backend.set_login_response(response, access_token, refresh_token)
 
-    @router.post("/logout")
+    @router.post("/logout", name="auth:logout")
     async def auth_logout(
         *,
         response: Response,
     ):
         auth_backend.set_logout_response(response)
 
-    @router.post("/token", response_model=UserTokenPayload)
+    @router.post("/token", response_model=UserTokenPayload, name="auth:token")
     async def token(
         *,
         user: User = Depends(get_authenticated_user),
     ):
         return user.data
 
-    @router.post("/token/refresh", response_model=UserTokenRefreshResponse)
+    @router.post(
+        "/token/refresh",
+        response_model=UserTokenRefreshResponse,
+        name="auth:refresh_access_token",
+    )
     async def auth_refresh_access_token(
         *,
         request: Request,
@@ -142,14 +147,18 @@ def get_router(
         auth_backend.set_access_cookie(response, access_token)
         return ORJSONResponse({"access_token": access_token})
 
-    @router.get("/verify", response_model=UserVerificationStatusResponse)
+    @router.get(
+        "/verify",
+        response_model=UserVerificationStatusResponse,
+        name="auth:get_verification_status",
+    )
     async def auth_get_verification_status(
         *,
         user: User = Depends(get_authenticated_user),
     ):
         return await repo.get(user.id)
 
-    @router.post("/verify")
+    @router.post("/verify", name="auth:requets_verification")
     async def auth_request_verification(
         *,
         user: User = Depends(get_authenticated_user),
@@ -160,23 +169,33 @@ def get_router(
                 422, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_VERIFIED
             )
 
-        if not await repo.is_email_confirmation_available(user.id):
+        if not await repo.is_verification_available(user.id):
             raise HTTPException(429)
 
         await request_verification(repo, email_backend, item.get("email"))
 
-    @router.post("/verify/{token}")
+    @router.post("/verify/{token}", name="auth:verify")
     async def auth_verify(*, token: str):
         token_hash = hash_string(token)
         if not await repo.verify(token_hash):
             raise HTTPException(404)
 
-    @router.post("{id}/change_username")
+    @router.post("{id}/change_username", name="auth:change_username")
     async def auth_change_username(
         *,
         user: User = Depends(get_authenticated_user),
         data_in: UserChangeUsername,
     ):
+        item = await repo.get(user.id)
+        if data_in.username == item.get("username"):
+            raise HTTPException(422, HTTPExceptionDetail.SAME_USERNAME)
+
         await repo.change_username(user.id, data_in.username)
+
+        if change_username_callback is not None:
+            if asyncio.iscoroutinefunction(change_username_callback):
+                await change_username_callback(user.id, data_in.username)  # type: ignore
+            else:
+                change_username_callback(user.id, data_in.username)
 
     return router

@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
     username: str
     password1: str
     password2: str
-    captcha: Optional[str]
+    captcha: Optional[str] = None
 
     _check_username = validator("username", allow_reuse=True)(
         Validator._validator.validate_username

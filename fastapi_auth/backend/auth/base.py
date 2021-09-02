@@ -27,7 +27,7 @@ class BaseJWTAuthentication:
     async def token_is_valid(self, id: int, iat: int) -> bool:
         raise NotImplementedError
 
-    async def refresh_access_token(self, refresh_token: str) -> str:
+    async def refresh_access_token(self, refresh_token: str) -> Optional[str]:
         raise NotImplementedError
 
     def set_access_cookie(self, response: Response, value: str) -> None:

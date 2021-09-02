@@ -59,6 +59,7 @@ class AuthApp(Auth):
         user_token_payload_model: Type[BaseUserTokenPayload] = UserTokenPayload,
         user_model_validator: Optional[BaseUserValidator] = None,
         user_create_hook: Optional[Callable[[dict], None]] = None,
+        change_username_callback: Optional[Callable[[int, str], None]] = None,
         enable_register_captcha: bool = True,
         enable_forgot_password_captcha: bool = False,
         debug: bool = False,
@@ -75,6 +76,7 @@ class AuthApp(Auth):
             Validator.set(user_model_validator)
 
         self._user_create_hook = user_create_hook
+        self._change_username_callback = change_username_callback
 
         self._enable_register_captcha = enable_register_captcha
         self._enable_forgot_password_captcha = enable_forgot_password_captcha
@@ -92,6 +94,7 @@ class AuthApp(Auth):
             get_authenticated_user=self.get_authenticated_user,
             user_token_payload_model=self._user_token_payload_model,
             user_create_hook=self._user_create_hook,
+            change_username_callback=self._change_username_callback,
             debug=self._debug,
             enable_captcha=self._enable_register_captcha,
         )

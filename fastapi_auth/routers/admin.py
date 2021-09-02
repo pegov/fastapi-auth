@@ -17,6 +17,7 @@ def get_router(
         "/blacklist",
         dependencies=[Depends(admin_required)],
         response_model=AdminBlacklist,
+        name="admin:blacklist",
     )
     async def admin_get_blacklist():
         return await repo.get_blacklist()
@@ -29,24 +30,38 @@ def get_router(
         "/blackout",
         dependencies=[Depends(admin_required)],
         response_model=AdminBlackout,
+        name="admin:get_blackout",
     )
     async def admin_get_blackout():
         return await repo.get_blackout()
 
-    @router.post("/blackout", dependencies=[Depends(admin_required)])
+    @router.post(
+        "/blackout", dependencies=[Depends(admin_required)], name="admin:set_blackout"
+    )
     async def admin_set_blackout():
         ts = datetime.utcnow()
         await repo.set_blackout(ts)
 
-    @router.delete("/blackout", dependencies=[Depends(admin_required)])
+    @router.delete(
+        "/blackout",
+        dependencies=[Depends(admin_required)],
+        name="admin:delete_blackout",
+    )
     async def admin_delete_blackout():
         await repo.delete_blackout()
 
-    @router.post("/{id}/kick", dependencies=[Depends(admin_required)])
+    @router.post(
+        "/{id}/kick", dependencies=[Depends(admin_required)], name="admin:kick"
+    )
     async def admin_kick(id: int):
         await repo.kick(id)
 
-    @router.get("", dependencies=[Depends(admin_required)], response_model=AdminUser)
+    @router.get(
+        "",
+        dependencies=[Depends(admin_required)],
+        response_model=AdminUser,
+        name="admin:get_users",
+    )
     async def admin_get_users(id: Optional[int], username: Optional[str]):
         if id is not None:
             user = await repo.get(id)
@@ -64,7 +79,11 @@ def get_router(
 
         raise HTTPException(422)
 
-    @router.get("/{id}", dependencies=[Depends(admin_required)])
+    @router.get(
+        "/{id}",
+        dependencies=[Depends(admin_required)],
+        name="admin:get_user_by_id",
+    )
     async def admin_get_user_by_id(id: int):
         return await repo.get(id)
 

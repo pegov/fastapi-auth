@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import Callable, Iterable, Optional, Tuple
 
@@ -112,7 +111,7 @@ class AuthBruteforceProtectionMixin(AuthBase):
 
 
 class AuthEmailMixin(AuthCRUDMixin):
-    async def is_email_confirmation_available(self, id: int) -> bool:
+    async def is_verification_available(self, id: int) -> bool:
         key = f"users:confirm:count:{id}"
         return await _reached_ratelimit(self, key, self._verification_ratelimit, 1800)
 
@@ -126,13 +125,6 @@ class AuthEmailMixin(AuthCRUDMixin):
 class AuthUsernameMixin(AuthCRUDMixin):
     async def change_username(self, id: int, new_username: str) -> None:
         await self.update(id, {"username": new_username})
-        for callback in self._change_username_callbacks:
-            if asyncio.iscoroutinefunction(callback):
-                await callback(id, new_username)
-            else:
-                callback(id, new_username)
-
-        return None
 
 
 class AuthPasswordMixin(AuthCRUDMixin):

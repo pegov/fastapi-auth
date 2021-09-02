@@ -34,8 +34,8 @@ def get_router(
 
     router = APIRouter()
 
-    @router.get("/{provider_name}")
-    async def social_login(provider_name: str, request: Request):
+    @router.get("/{provider_name}", name="oauth:login")
+    async def oauth_login(provider_name: str, request: Request):
         provider = get_provider(provider_name)
 
         state = create_random_state()
@@ -46,8 +46,8 @@ def get_router(
 
         return RedirectResponse(oauth_uri)
 
-    @router.get("/{provider_name}/callback")
-    async def social_callback(provider_name: str, request: Request):
+    @router.get("/{provider_name}/callback", name="oauth:callback")
+    async def oauth_callback(provider_name: str, request: Request):
         provider = get_provider(provider_name)
 
         request_state = request.query_params.get("state")
