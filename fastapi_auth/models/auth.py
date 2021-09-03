@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel, EmailStr, validator
 
-from fastapi_auth.models.common import set_created_at, set_last_login
+from fastapi_auth.models.common import DefaultModel, set_created_at, set_last_login
 from fastapi_auth.validator import Validator
 
 
@@ -69,3 +69,25 @@ class UserChangeUsername(BaseModel):
     username: str
 
     _check_username = validator("username")(Validator._validator.validate_username)
+
+
+class UserAccount(DefaultModel):
+    id: int
+    email: str
+    username: str
+    verified: bool
+    roles: List[str]
+
+    created_at: datetime
+    last_login: datetime
+
+
+class UserUpdateAccount(BaseModel):
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+
+    @validator("username")
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        return Validator._validator.validate_username(v)

@@ -5,3 +5,4 @@ class HTTPExceptionDetail:
     NO_EMAIL = "no email"
     EMAIL_WAS_ALREADY_VERIFIED = "email was already verified"
     SAME_USERNAME = "same username"
+    SAME_EMAIL = "same email"

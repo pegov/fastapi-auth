@@ -11,12 +11,13 @@ from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
     BaseUserTokenPayload,
-    UserChangeUsername,
+    UserAccount,
     UserCreate,
     UserLogin,
     UserRegister,
     UserTokenPayload,
     UserTokenRefreshResponse,
+    UserUpdateAccount,
     UserVerificationStatusResponse,
 )
 from fastapi_auth.repo import AuthRepo
@@ -180,22 +181,35 @@ def get_router(
         if not await repo.verify(token_hash):
             raise HTTPException(404)
 
-    @router.post("/change_username", name="auth:change_username")
-    async def auth_change_username(
+    @router.get("/account", name="auth:get_account", response_model=UserAccount)
+    async def auth_get_account(
         *,
         user: User = Depends(get_authenticated_user),
-        data_in: UserChangeUsername,
+    ):
+        return await repo.get(user.id)
+
+    @router.post("/account", name="auth:update_account")
+    async def auth_update_account(
+        *,
+        user: User = Depends(get_authenticated_user),
+        data_in: UserUpdateAccount,
     ):
         item = await repo.get(user.id)
         if data_in.username == item.get("username"):
             raise HTTPException(422, HTTPExceptionDetail.SAME_USERNAME)
 
-        await repo.change_username(user.id, data_in.username)
+        if data_in.username is not None:
+            await repo.change_username(user.id, data_in.username)
+            if change_username_callback is not None:
+                if asyncio.iscoroutinefunction(change_username_callback):
+                    await change_username_callback(user.id, data_in.username)  # type: ignore
+                else:
+                    change_username_callback(user.id, data_in.username)
 
-        if change_username_callback is not None:
-            if asyncio.iscoroutinefunction(change_username_callback):
-                await change_username_callback(user.id, data_in.username)  # type: ignore
-            else:
-                change_username_callback(user.id, data_in.username)
+        if data_in.email == item.get("email"):
+            raise HTTPException(422, HTTPExceptionDetail.SAME_EMAIL)
+
+        if data_in.email is not None:
+            await repo.change_email(user.id, data_in.email)
 
     return router

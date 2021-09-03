@@ -122,9 +122,12 @@ class AuthEmailMixin(AuthCRUDMixin):
         return await self._db.verify(token_hash)
 
 
-class AuthUsernameMixin(AuthCRUDMixin):
+class AuthAccountMixin(AuthCRUDMixin):
     async def change_username(self, id: int, new_username: str) -> None:
         await self.update(id, {"username": new_username})
+
+    async def change_email(self, id: int, new_email: str) -> None:
+        await self.update(id, {"email": new_email})
 
 
 class AuthPasswordMixin(AuthCRUDMixin):
@@ -217,7 +220,7 @@ class AuthAdminMixin(AuthCRUDMixin):
 class AuthRepo(
     AuthBruteforceProtectionMixin,
     AuthEmailMixin,
-    AuthUsernameMixin,
+    AuthAccountMixin,
     AuthPasswordMixin,
     AuthAdminMixin,
 ):
