@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, Iterable, Optional, Tuple
+from typing import Optional, Tuple
 
 from fastapi_auth.backend.cache import BaseCacheBackend
 from fastapi_auth.backend.db import BaseDBBackend
@@ -29,7 +29,6 @@ class AuthBase:
         self,
         db: Optional[BaseDBBackend],
         cache: BaseCacheBackend,
-        change_username_callbacks: Iterable[Callable] = [],
         access_expiration: int = 60 * 60 * 6,
         login_ratelimit: int = 30,
         login_timeout: int = 60,
@@ -40,7 +39,6 @@ class AuthBase:
     ) -> None:
         self._db = db
         self._cache = cache
-        self._change_username_callbacks = change_username_callbacks
         self._access_expiration = access_expiration
 
         self._login_ratelimit = login_ratelimit
