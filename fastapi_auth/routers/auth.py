@@ -185,7 +185,14 @@ def get_router(
     async def auth_get_account(
         *,
         user: User = Depends(get_authenticated_user),
+        id: Optional[int] = None,
     ):
+        if id is not None:
+            if user.is_admin:
+                return await repo.get(id)
+
+            raise HTTPException(403)
+
         return await repo.get(user.id)
 
     @router.post("/account", name="auth:update_account")
@@ -194,22 +201,31 @@ def get_router(
         user: User = Depends(get_authenticated_user),
         data_in: UserUpdateAccount,
     ):
-        item = await repo.get(user.id)
+        if data_in.id is not None:
+            if user.is_admin:
+                account_id = data_in.id
+            else:
+                raise HTTPException(403)
+        else:
+            account_id = user.id
+
+        item = await repo.get(account_id)
+
         if data_in.username == item.get("username"):
             raise HTTPException(422, HTTPExceptionDetail.SAME_USERNAME)
 
         if data_in.username is not None:
-            await repo.change_username(user.id, data_in.username)
+            await repo.change_username(account_id, data_in.username)
             if change_username_callback is not None:
                 if asyncio.iscoroutinefunction(change_username_callback):
-                    await change_username_callback(user.id, data_in.username)  # type: ignore
+                    await change_username_callback(account_id, data_in.username)  # type: ignore
                 else:
-                    change_username_callback(user.id, data_in.username)
+                    change_username_callback(account_id, data_in.username)
 
         if data_in.email == item.get("email"):
             raise HTTPException(422, HTTPExceptionDetail.SAME_EMAIL)
 
         if data_in.email is not None:
-            await repo.change_email(user.id, data_in.email)
+            await repo.change_email(account_id, data_in.email)
 
     return router

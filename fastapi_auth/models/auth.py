@@ -83,6 +83,7 @@ class UserAccount(DefaultModel):
 
 
 class UserUpdateAccount(BaseModel):
+    id: Optional[int] = None
     email: Optional[EmailStr] = None
     username: Optional[str] = None
 
