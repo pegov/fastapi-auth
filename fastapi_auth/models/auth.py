@@ -75,7 +75,12 @@ class UserAccount(DefaultModel):
     id: int
     email: str
     username: str
+
+    provider: Optional[str] = None
+
+    active: bool
     verified: bool
+
     roles: List[str]
 
     created_at: datetime
