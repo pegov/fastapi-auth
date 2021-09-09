@@ -68,7 +68,9 @@ class UserVerificationStatusResponse(BaseModel):
 class UserChangeUsername(BaseModel):
     username: str
 
-    _check_username = validator("username")(Validator._validator.validate_username)
+    _check_username = validator("username", allow_reuse=True)(
+        Validator._validator.validate_username
+    )
 
 
 class UserAccount(DefaultModel):
@@ -88,7 +90,6 @@ class UserAccount(DefaultModel):
 
 
 class UserUpdateAccount(BaseModel):
-    id: Optional[int] = None
     email: Optional[EmailStr] = None
     username: Optional[str] = None
 

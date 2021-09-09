@@ -52,15 +52,15 @@ def get_router(
             and enable_captcha
             and not await captcha_backend.validate_captcha(user_in.captcha)
         ):
-            raise HTTPException(422, detail=HTTPExceptionDetail.CAPTCHA_IS_NOT_VALID)
+            raise HTTPException(400, detail=HTTPExceptionDetail.CAPTCHA_IS_NOT_VALID)
 
         existing_email = await repo.get_by_email(user_in.email)
         if existing_email is not None:
-            raise HTTPException(422, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS)
+            raise HTTPException(400, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS)
 
         existing_username = await repo.get_by_username(user_in.username)
         if existing_username is not None:
-            raise HTTPException(422, detail=HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
+            raise HTTPException(400, detail=HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
 
         password_hash = get_password_hash(user_in.password1)
         user_obj = UserCreate(**user_in.dict(), password=password_hash).dict()
@@ -181,7 +181,12 @@ def get_router(
         if not await repo.verify(token_hash):
             raise HTTPException(404)
 
-    @router.get("/account", name="auth:get_account", response_model=UserAccount)
+    @router.get(
+        "/account",
+        name="auth:get_account",
+        response_model=UserAccount,
+        response_model_exclude_none=True,
+    )
     async def auth_get_account(
         *,
         user: User = Depends(get_authenticated_user),
@@ -195,37 +200,29 @@ def get_router(
 
         return await repo.get(user.id)
 
-    @router.post("/account", name="auth:update_account")
+    @router.patch("/account", name="auth:update_account")
     async def auth_update_account(
         *,
         user: User = Depends(get_authenticated_user),
         data_in: UserUpdateAccount,
     ):
-        if data_in.id is not None:
-            if user.is_admin:
-                account_id = data_in.id
-            else:
-                raise HTTPException(403)
-        else:
-            account_id = user.id
-
-        item = await repo.get(account_id)
-
-        if data_in.username == item.get("username"):
-            raise HTTPException(422, HTTPExceptionDetail.SAME_USERNAME)
+        item = await repo.get(user.id)
 
         if data_in.username is not None:
-            await repo.change_username(account_id, data_in.username)
+            if data_in.username == item.get("username"):
+                raise HTTPException(400, HTTPExceptionDetail.SAME_USERNAME)
+
+            await repo.change_username(user.id, data_in.username)
+
             if change_username_callback is not None:
                 if asyncio.iscoroutinefunction(change_username_callback):
-                    await change_username_callback(account_id, data_in.username)  # type: ignore
+                    await change_username_callback(user.id, data_in.username)  # type: ignore
                 else:
-                    change_username_callback(account_id, data_in.username)
-
-        if data_in.email == item.get("email"):
-            raise HTTPException(422, HTTPExceptionDetail.SAME_EMAIL)
+                    change_username_callback(user.id, data_in.username)
 
         if data_in.email is not None:
-            await repo.change_email(account_id, data_in.email)
+            if data_in.email == item.get("email"):
+                raise HTTPException(400, HTTPExceptionDetail.SAME_EMAIL)
+            await repo.change_email(user.id, data_in.email)
 
     return router

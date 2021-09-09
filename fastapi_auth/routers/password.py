@@ -5,6 +5,7 @@ from fastapi.exceptions import HTTPException
 
 from fastapi_auth.backend.captcha.base import BaseCaptchaBackend
 from fastapi_auth.backend.email.base import BaseEmailBackend
+from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.logging import logger
 from fastapi_auth.models.password import (
     PasswordChange,
@@ -41,7 +42,7 @@ def get_router(
             and enable_captcha
             and not await captcha_backend.validate_captcha(data_in.captcha)
         ):
-            raise HTTPException(422, detail="captcha")
+            raise HTTPException(400, detail=HTTPExceptionDetail.CAPTCHA_IS_NOT_VALID)
 
         log = {
             "action": "reset_password",
@@ -91,7 +92,7 @@ def get_router(
     ):
         item = await repo.get(user.id)
         if item.get("password") is not None:
-            raise HTTPException(422)
+            raise HTTPException(400, detail=HTTPExceptionDetail.PASSWORD_ALREADY_EXISTS)
 
         await set_password(repo, user.id, data_in)
 
@@ -103,7 +104,7 @@ def get_router(
     ):
         item = await repo.get(user.id)
         if item.get("password") is None:
-            raise HTTPException(422)
+            raise HTTPException(400, detail=HTTPExceptionDetail.PASSWORD_IS_NOT_SET)
 
         old_password_hash = item.get("password")
         if not verify_password(data_in.old_password, old_password_hash):

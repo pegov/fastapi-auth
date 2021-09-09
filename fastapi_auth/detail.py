@@ -6,3 +6,5 @@ class HTTPExceptionDetail:
     EMAIL_WAS_ALREADY_VERIFIED = "email was already verified"
     SAME_USERNAME = "same username"
     SAME_EMAIL = "same email"
+    PASSWORD_ALREADY_EXISTS = "password already exists"
+    PASSWORD_IS_NOT_SET = "password is not set"
