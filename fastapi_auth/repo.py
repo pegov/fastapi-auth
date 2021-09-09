@@ -125,7 +125,7 @@ class AuthAccountMixin(AuthCRUDMixin):
         await self.update(id, {"username": new_username})
 
     async def change_email(self, id: int, new_email: str) -> None:
-        await self.update(id, {"email": new_email})
+        await self.update(id, {"email": new_email, "verified": False})
 
 
 class AuthPasswordMixin(AuthCRUDMixin):
