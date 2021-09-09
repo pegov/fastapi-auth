@@ -35,3 +35,4 @@ class AdminUser(DefaultModel):
 class AdminUpdateUser(DefaultModel):
     email: Optional[str] = None
     username: Optional[str] = None
+    verified: Optional[bool] = None
