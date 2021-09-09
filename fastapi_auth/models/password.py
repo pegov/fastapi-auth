@@ -18,7 +18,7 @@ class PasswordSet(DefaultModel):
     _check_password2 = validator("password2")(Validator._validator.validate_password)
 
 
-class PasswordHasPasswordResponse(DefaultModel):
+class PasswordStatus(DefaultModel):
     has_password: bool
 
 

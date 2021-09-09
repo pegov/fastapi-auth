@@ -10,9 +10,9 @@ from fastapi_auth.logging import logger
 from fastapi_auth.models.password import (
     PasswordChange,
     PasswordForgot,
-    PasswordHasPasswordResponse,
     PasswordReset,
     PasswordSet,
+    PasswordStatus,
 )
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.services.password import set_password
@@ -71,11 +71,11 @@ def get_router(
         await email_backend.request_password_reset(email, token)
 
     @router.get(
-        "/password",
-        response_model=PasswordHasPasswordResponse,
-        name="password:has_password",
+        "/password_status",
+        response_model=PasswordStatus,
+        name="password:get_password_status",
     )
-    async def password_has_password(
+    async def password_get_password_status(
         *,
         user: User = Depends(get_authenticated_user),
     ):
@@ -84,7 +84,7 @@ def get_router(
             return {"has_password": False}
         return {"has_password": True}
 
-    @router.post("/password", name="password:set_password")
+    @router.post("/set_password", name="password:set_password")
     async def password_set_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -96,7 +96,7 @@ def get_router(
 
         await set_password(repo, user.id, data_in)
 
-    @router.put("/password", name="password:change_password")
+    @router.post("/change_password", name="password:change_password")
     async def password_change_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -112,7 +112,7 @@ def get_router(
 
         await set_password(repo, user.id, data_in)
 
-    @router.post("/password/{token}", name="password:reset_password")
+    @router.post("/reset_password/{token}", name="password:reset_password")
     async def password_reset_password(
         *,
         token: str,
