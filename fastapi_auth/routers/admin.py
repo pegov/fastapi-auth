@@ -1,9 +1,15 @@
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.exceptions import HTTPException
 
-from fastapi_auth.models.admin import AdminBlacklist, AdminBlackout, AdminUser
+from fastapi_auth.models.admin import (
+    AdminBlacklist,
+    AdminBlackout,
+    AdminUpdateUser,
+    AdminUser,
+)
 from fastapi_auth.repo import AuthRepo
 
 
@@ -57,34 +63,26 @@ def get_router(
         await repo.kick(id)
 
     @router.get(
-        "",
-        dependencies=[Depends(admin_required)],
-        response_model=AdminUser,
-        name="admin:get_users",
-    )
-    async def admin_get_users(id: Optional[int], username: Optional[str]):
-        if id is not None:
-            user = await repo.get(id)
-            if user is None:
-                raise HTTPException(404)
-
-            return user
-
-        if username is not None:
-            user = await repo.get_by_username(username)
-            if user is None:
-                raise HTTPException(404)
-
-            return user
-
-        raise HTTPException(422)
-
-    @router.get(
         "/{id}",
         dependencies=[Depends(admin_required)],
-        name="admin:get_user_by_id",
+        name="admin:get_user",
+        response_model=AdminUser,
+        response_model_exclude_none=True,
     )
-    async def admin_get_user_by_id(id: int):
-        return await repo.get(id)
+    async def admin_get_user(id: int):
+        user = await repo.get(id)
+        if user is None:
+            raise HTTPException(404)
+        return user
+
+    @router.patch(
+        "/{id}", dependencies=[Depends(admin_required)], name="admin:update_user"
+    )
+    async def admin_update_user(id: int, data_in: AdminUpdateUser):
+        user = await repo.get(id)
+        if user is None:
+            raise HTTPException(404)
+
+        await repo.update(id, data_in.dict(exclude_none=True))
 
     return router

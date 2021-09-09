@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -23,7 +24,14 @@ class AdminUser(DefaultModel):
     id: int
     email: str
     username: str
-    provider: Optional[str]
-    sid: Optional[str]
+    provider: Optional[str] = None
     active: bool
     verified: bool
+
+    created_at: datetime
+    last_login: datetime
+
+
+class AdminUpdateUser(DefaultModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
