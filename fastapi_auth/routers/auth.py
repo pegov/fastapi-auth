@@ -190,14 +190,7 @@ def get_router(
     async def auth_get_account(
         *,
         user: User = Depends(get_authenticated_user),
-        id: Optional[int] = None,
     ):
-        if id is not None:
-            if user.is_admin:
-                return await repo.get(id)
-
-            raise HTTPException(403)
-
         return await repo.get(user.id)
 
     @router.patch("/account", name="auth:update_account")
