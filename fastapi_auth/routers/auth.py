@@ -167,7 +167,7 @@ def get_router(
         item = await repo.get(user.id)
         if item.get("verified"):
             raise HTTPException(
-                422, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_VERIFIED
+                400, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_VERIFIED
             )
 
         if not await repo.is_verification_available(user.id):
