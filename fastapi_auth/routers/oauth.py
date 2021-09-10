@@ -62,7 +62,7 @@ def get_router(
 
         if email is None:
             # NOTE: was 400
-            raise HTTPException(422, detail=HTTPExceptionDetail.NO_EMAIL)
+            raise HTTPException(400, detail=HTTPExceptionDetail.NO_EMAIL)
 
         existing_social_user = await repo.get_by_social(provider_name, sid)
         if existing_social_user is not None:
@@ -74,7 +74,7 @@ def get_router(
             if existing_email is not None:
                 # NOTE: was 401
                 raise HTTPException(
-                    422, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS
+                    400, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS
                 )
 
             username = await resolve_username(repo, email)
