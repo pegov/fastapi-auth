@@ -64,6 +64,8 @@ class AuthApp(Auth):
         enable_forgot_password_captcha: bool = False,
         debug: bool = False,
         origin: str = "http://127.0.0.1",
+        oauth_create_redirect_path_prefix: str = "/auth",  # same as router prefix
+        oauth_error_redirect_path: str = "/oauth",
     ):
         self._repo = repo
         self._auth_backend = auth_backend
@@ -83,6 +85,9 @@ class AuthApp(Auth):
 
         self._debug = debug
         self._origin = origin
+
+        self._oauth_create_redirect_path_prefix = oauth_create_redirect_path_prefix
+        self._oauth_error_redirect_path = oauth_error_redirect_path
 
     @property
     def auth_router(self) -> APIRouter:
@@ -119,6 +124,8 @@ class AuthApp(Auth):
             user_token_payload_model=self._user_token_payload_model,
             user_create_hook=self._user_create_hook,
             origin=self._origin,
+            create_redirect_path_prefix=self._oauth_create_redirect_path_prefix,
+            error_redirect_path=self._oauth_error_redirect_path,
         )
 
     @property
