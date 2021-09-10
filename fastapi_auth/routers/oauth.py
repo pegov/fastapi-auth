@@ -6,7 +6,6 @@ from fastapi.responses import RedirectResponse
 
 from fastapi_auth.backend.auth import BaseJWTAuthentication
 from fastapi_auth.backend.oauth import BaseOAuthProvider
-from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import BaseUserTokenPayload
 from fastapi_auth.models.oauth import OAuthCreate
 from fastapi_auth.repo import AuthRepo
@@ -48,34 +47,31 @@ def get_router(
 
     @router.get("/{provider_name}/callback", name="oauth:callback")
     async def oauth_callback(provider_name: str, request: Request):
+        # TODO: custom redirect path
         provider = get_provider(provider_name)
 
         request_state = request.query_params.get("state")
         session_state = request.session.get("state")
 
         if request_state != session_state:
-            raise HTTPException(403)
+            return RedirectResponse("/oauth?message=invalid_state")
 
         redirect_uri = create_redirect_uri(provider_name)
         code = request.query_params.get("code")
         sid, email = await provider.get_user_data(redirect_uri, code)
 
         if email is None:
-            # NOTE: was 400
-            raise HTTPException(400, detail=HTTPExceptionDetail.NO_EMAIL)
+            return RedirectResponse("/oauth?message=no_email")
 
         existing_social_user = await repo.get_by_social(provider_name, sid)
         if existing_social_user is not None:
             item = existing_social_user
             if not item.get("active"):
-                raise HTTPException(401)
+                return RedirectResponse("/oauth?message=ban")
         else:
             existing_email = await repo.get_by_email(email)
             if existing_email is not None:
-                # NOTE: was 401
-                raise HTTPException(
-                    400, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS
-                )
+                return RedirectResponse("/oauth?message=email_already_exists")
 
             username = await resolve_username(repo, email)
 
