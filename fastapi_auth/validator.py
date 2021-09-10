@@ -7,4 +7,4 @@ class Validator:
     # NOTE: setup again.
     @classmethod
     def set(cls, validator: BaseUserValidator) -> None:
-        cls._validator = validator
+        cls._validator = validator  # pragma: no cover
