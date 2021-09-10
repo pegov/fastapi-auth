@@ -28,7 +28,11 @@ def get_router(
     async def admin_get_blacklist():
         return await repo.get_blacklist()
 
-    @router.post("/{id}/blacklist", dependencies=[Depends(admin_required)])
+    @router.post(
+        "/{id}/blacklist",
+        dependencies=[Depends(admin_required)],
+        name="admin:toggle_blacklist",
+    )
     async def admin_toggle_blacklist(id: int):
         await repo.toggle_blacklist(id)
 
@@ -42,7 +46,9 @@ def get_router(
         return await repo.get_blackout()
 
     @router.post(
-        "/blackout", dependencies=[Depends(admin_required)], name="admin:set_blackout"
+        "/blackout",
+        dependencies=[Depends(admin_required)],
+        name="admin:set_blackout",
     )
     async def admin_set_blackout():
         ts = datetime.utcnow()
@@ -57,7 +63,9 @@ def get_router(
         await repo.delete_blackout()
 
     @router.post(
-        "/{id}/kick", dependencies=[Depends(admin_required)], name="admin:kick"
+        "/{id}/kick",
+        dependencies=[Depends(admin_required)],
+        name="admin:kick",
     )
     async def admin_kick(id: int):
         await repo.kick(id)
@@ -76,7 +84,9 @@ def get_router(
         return user
 
     @router.patch(
-        "/{id}", dependencies=[Depends(admin_required)], name="admin:update_user"
+        "/{id}",
+        dependencies=[Depends(admin_required)],
+        name="admin:update_user",
     )
     async def admin_update_user(id: int, data_in: AdminUpdateUser):
         user = await repo.get(id)
