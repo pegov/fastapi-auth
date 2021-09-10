@@ -10,7 +10,6 @@ from fastapi_auth.logging import logger
 from fastapi_auth.models.password import (
     PasswordChange,
     PasswordForgot,
-    PasswordReset,
     PasswordSet,
     PasswordStatus,
 )
@@ -116,7 +115,7 @@ def get_router(
     async def password_reset_password(
         *,
         token: str,
-        data_in: PasswordReset,
+        data_in: PasswordSet,
     ):
         token_hash = hash_string(token)
         id = await repo.get_id_for_password_reset(token_hash)
