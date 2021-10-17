@@ -11,7 +11,7 @@ PASSWORD_CHARS = "".join([ascii_letters, digits, punctuation])
 class StandardUserValidator(BaseUserValidator):
     def __init__(
         self,
-        username_min_length: int = 3,
+        username_min_length: int = 4,
         username_max_length: int = 20,
         username_chars: str = USERNAME_CHARS,
         forbidden_usernames: List[str] = [],
@@ -37,6 +37,10 @@ class StandardUserValidator(BaseUserValidator):
                 raise ValueError("username chars")
         if v in self._forbidden_usernames:
             raise ValueError("username forbidden")
+
+        all_letters = ascii_letters + russian_letters
+        if not any(letter in all_letters for letter in v):
+            raise ValueError("username must contain letters")
 
         if any(letter in ascii_letters for letter in v):
             if any(letter in russian_letters for letter in v):
