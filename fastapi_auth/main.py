@@ -1,13 +1,13 @@
 from typing import Callable, Iterable, Optional, Type
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from fastapi_auth.backend.auth import BaseJWTAuthentication
 from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.backend.oauth import BaseOAuthProvider
 from fastapi_auth.backend.validator import BaseUserValidator
-from fastapi_auth.models.auth import BaseUserTokenPayload, UserTokenPayload
+from fastapi_auth.models.auth import BaseTokenPayload, TokenPayload
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.routers import (
     get_admin_router,
@@ -56,10 +56,10 @@ class AuthApp(Auth):
         email_backend: BaseEmailBackend,
         captcha_backend: Optional[BaseCaptchaBackend],
         oauth_providers: Iterable[BaseOAuthProvider] = [],
-        user_token_payload_model: Type[BaseUserTokenPayload] = UserTokenPayload,
+        user_token_payload_model: Type[BaseTokenPayload] = TokenPayload,
         user_model_validator: Optional[BaseUserValidator] = None,
         user_create_hook: Optional[Callable[[dict], None]] = None,
-        change_username_callback: Optional[Callable[[int, str], None]] = None,
+        change_username_callback: Optional[Callable[[Request, int, str], None]] = None,
         enable_register_captcha: bool = True,
         enable_forgot_password_captcha: bool = False,
         debug: bool = False,
@@ -134,3 +134,23 @@ class AuthApp(Auth):
             repo=self._repo,
             admin_required=self.admin_required,
         )
+
+
+class FastAPIAuth:
+    def __init__(self, app: FastAPI, auth: Auth):
+        app.state._fastapi_auth = auth
+
+
+async def get_user(request: Request) -> User:
+    auth: Auth = request.state._fastapi_auth
+    return await auth.get_user(request)
+
+
+async def get_authenticated_user(request: Request) -> User:
+    auth: Auth = request.state._fastapi_auth
+    return await auth.get_authenticated_user(request)
+
+
+async def admin_required(request: Request) -> None:
+    auth: Auth = request.state._fastapi_auth
+    await auth.admin_required(request)
