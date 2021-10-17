@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from fastapi_auth.backend.auth import BaseJWTAuthentication
 from fastapi_auth.backend.oauth import BaseOAuthProvider
-from fastapi_auth.models.auth import BaseUserTokenPayload
+from fastapi_auth.models.auth import BaseTokenPayload
 from fastapi_auth.models.oauth import OAuthCreate
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.services.oauth import resolve_username
@@ -17,7 +17,7 @@ def get_router(
     repo: AuthRepo,
     auth_backend: BaseJWTAuthentication,
     oauth_providers: Iterable[BaseOAuthProvider],
-    user_token_payload_model: Type[BaseUserTokenPayload],
+    user_token_payload_model: Type[BaseTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
     origin: str,
     create_redirect_path_prefix: str,

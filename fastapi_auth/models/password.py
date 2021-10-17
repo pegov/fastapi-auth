@@ -24,3 +24,7 @@ class PasswordStatus(DefaultModel):
 
 class PasswordChange(PasswordSet):
     old_password: str
+
+
+class PasswordReset(PasswordSet):
+    token: str

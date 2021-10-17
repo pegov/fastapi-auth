@@ -10,6 +10,7 @@ from fastapi_auth.logging import logger
 from fastapi_auth.models.password import (
     PasswordChange,
     PasswordForgot,
+    PasswordReset,
     PasswordSet,
     PasswordStatus,
 )
@@ -30,7 +31,7 @@ def get_router(
 ):
     router = APIRouter()
 
-    @router.post("/forgot_password", name="password:forgot_password")
+    @router.post("/password/forgot", name="password:forgot_password")
     async def password_forgot_password(
         *,
         data_in: PasswordForgot,
@@ -70,7 +71,7 @@ def get_router(
         await email_backend.request_password_reset(email, token)
 
     @router.get(
-        "/password_status",
+        "/password/status",
         response_model=PasswordStatus,
         name="password:get_password_status",
     )
@@ -83,7 +84,7 @@ def get_router(
             return {"has_password": False}
         return {"has_password": True}
 
-    @router.post("/set_password", name="password:set_password")
+    @router.post("/password/set", name="password:set_password")
     async def password_set_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -95,7 +96,7 @@ def get_router(
 
         await set_password(repo, user.id, data_in)
 
-    @router.post("/change_password", name="password:change_password")
+    @router.post("/password/change", name="password:change_password")
     async def password_change_password(
         *,
         user: User = Depends(get_authenticated_user),
@@ -107,17 +108,16 @@ def get_router(
 
         old_password_hash = item.get("password")
         if not verify_password(data_in.old_password, old_password_hash):
-            raise HTTPException(401)
+            raise HTTPException(400, detail=HTTPExceptionDetail.INCORRECT_OLD_PASSWORD)
 
         await set_password(repo, user.id, data_in)
 
-    @router.post("/reset_password/{token}", name="password:reset_password")
+    @router.post("/password/reset", name="password:reset_password")
     async def password_reset_password(
         *,
-        token: str,
-        data_in: PasswordSet,
+        data_in: PasswordReset,
     ):
-        token_hash = hash_string(token)
+        token_hash = hash_string(data_in.token)
         id = await repo.get_id_for_password_reset(token_hash)
         if id is None:
             raise HTTPException(404)

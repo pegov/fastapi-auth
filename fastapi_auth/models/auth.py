@@ -7,7 +7,7 @@ from fastapi_auth.models.common import DefaultModel, set_created_at, set_last_lo
 from fastapi_auth.validator import Validator
 
 
-class UserRegister(BaseModel):
+class Register(BaseModel):
     email: EmailStr
     username: str
     password1: str
@@ -22,22 +22,22 @@ class UserRegister(BaseModel):
     )
 
 
-class UserLogin(BaseModel):
+class Login(BaseModel):
     login: Union[EmailStr, str]
     password: str
 
 
-class BaseUserTokenPayload(BaseModel):
+class BaseTokenPayload(BaseModel):
     id: int
 
 
-class UserTokenPayload(BaseUserTokenPayload):
+class TokenPayload(BaseTokenPayload):
     id: int
     username: str
     roles: List[str] = []
 
 
-class UserCreate(BaseModel):
+class Create(BaseModel):
     email: str
     username: str
     password: str
@@ -56,16 +56,18 @@ class UserCreate(BaseModel):
     )
 
 
-class UserTokenRefreshResponse(BaseModel):
+class TokenRefreshResponse(BaseModel):
     access_token: str
 
 
-class UserVerificationStatusResponse(BaseModel):
+# NOTE: already exists in account
+# TODO: remove
+class VerificationStatusResponse(BaseModel):
     email: str
     verified: bool
 
 
-class UserChangeUsername(BaseModel):
+class ChangeUsername(BaseModel):
     username: str
 
     _check_username = validator("username", allow_reuse=True)(
@@ -73,7 +75,7 @@ class UserChangeUsername(BaseModel):
     )
 
 
-class UserAccount(DefaultModel):
+class Account(DefaultModel):
     id: int
     email: str
     username: str
@@ -89,7 +91,7 @@ class UserAccount(DefaultModel):
     last_login: datetime
 
 
-class UserUpdateAccount(BaseModel):
+class UpdateAccount(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
 

@@ -6,21 +6,21 @@ from pydantic import BaseModel
 from .common import DefaultModel
 
 
-class AdminBlacklistItem(BaseModel):
+class BlacklistItem(BaseModel):
     id: int
     username: str
 
 
-class AdminBlacklist(BaseModel):
-    all: List[AdminBlacklistItem]
-    recent: List[AdminBlacklistItem]
+class Blacklist(BaseModel):
+    all: List[BlacklistItem]
+    recent: List[BlacklistItem]
 
 
-class AdminBlackout(BaseModel):
+class Blackout(BaseModel):
     ts: int
 
 
-class AdminUser(DefaultModel):
+class UserInfo(DefaultModel):
     id: int
     email: str
     username: str
@@ -32,7 +32,8 @@ class AdminUser(DefaultModel):
     last_login: datetime
 
 
-class AdminUpdateUser(DefaultModel):
+class UpdateUser(DefaultModel):
     email: Optional[str] = None
     username: Optional[str] = None
+    active: Optional[bool] = None  # TODO
     verified: Optional[bool] = None

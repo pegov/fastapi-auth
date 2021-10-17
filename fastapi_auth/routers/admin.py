@@ -4,12 +4,7 @@ from typing import Callable
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 
-from fastapi_auth.models.admin import (
-    AdminBlacklist,
-    AdminBlackout,
-    AdminUpdateUser,
-    AdminUser,
-)
+from fastapi_auth.models.admin import Blacklist, Blackout, UpdateUser, UserInfo
 from fastapi_auth.repo import AuthRepo
 
 
@@ -22,14 +17,14 @@ def get_router(
     @router.get(
         "/blacklist",
         dependencies=[Depends(admin_required)],
-        response_model=AdminBlacklist,
-        name="admin:blacklist",
+        response_model=Blacklist,
+        name="admin:get_blacklist",
     )
     async def admin_get_blacklist():
         return await repo.get_blacklist()
 
     @router.post(
-        "/{id}/blacklist",
+        "/{id}/ban",
         dependencies=[Depends(admin_required)],
         name="admin:toggle_blacklist",
     )
@@ -39,7 +34,7 @@ def get_router(
     @router.get(
         "/blackout",
         dependencies=[Depends(admin_required)],
-        response_model=AdminBlackout,
+        response_model=Blackout,
         name="admin:get_blackout",
     )
     async def admin_get_blackout():
@@ -74,7 +69,7 @@ def get_router(
         "/{id}",
         dependencies=[Depends(admin_required)],
         name="admin:get_user",
-        response_model=AdminUser,
+        response_model=UserInfo,
         response_model_exclude_none=True,
     )
     async def admin_get_user(id: int):
@@ -88,11 +83,13 @@ def get_router(
         dependencies=[Depends(admin_required)],
         name="admin:update_user",
     )
-    async def admin_update_user(id: int, data_in: AdminUpdateUser):
+    async def admin_update_user(id: int, data_in: UpdateUser):
         user = await repo.get(id)
         if user is None:
             raise HTTPException(404)
 
         await repo.update(id, data_in.dict(exclude_none=True))
+
+        # TODO: if username or active => logout
 
     return router
