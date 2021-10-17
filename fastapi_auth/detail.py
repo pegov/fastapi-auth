@@ -8,3 +8,4 @@ class HTTPExceptionDetail:
     SAME_EMAIL = "same email"
     PASSWORD_ALREADY_EXISTS = "password already exists"
     PASSWORD_IS_NOT_SET = "password is not set"
+    INCORRECT_OLD_PASSWORD = "incorrect old password"
