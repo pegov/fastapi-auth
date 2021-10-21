@@ -75,7 +75,7 @@ class ChangeUsername(BaseModel):
     )
 
 
-class Account(DefaultModel):
+class Me(DefaultModel):
     id: int
     email: str
     username: str
@@ -91,7 +91,7 @@ class Account(DefaultModel):
     last_login: datetime
 
 
-class UpdateAccount(BaseModel):
+class UpdateMe(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
 

@@ -10,14 +10,14 @@ from fastapi_auth.backend.captcha import BaseCaptchaBackend
 from fastapi_auth.backend.email import BaseEmailBackend
 from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
-    Account,
     BaseTokenPayload,
     Create,
     Login,
+    Me,
     Register,
     TokenPayload,
     TokenRefreshResponse,
-    UpdateAccount,
+    UpdateMe,
     VerificationStatusResponse,
 )
 from fastapi_auth.repo import AuthRepo
@@ -182,21 +182,21 @@ def get_router(
             raise HTTPException(404)
 
     @router.get(
-        "/account",
-        name="auth:get_account",
-        response_model=Account,
+        "/me",
+        name="auth:get_me",
+        response_model=Me,
         response_model_exclude_none=True,
     )
-    async def auth_get_account(
+    async def auth_get_me(
         *,
         user: User = Depends(get_authenticated_user),
     ):
         return await repo.get(user.id)
 
-    @router.patch("/account", name="auth:update_account")
-    async def auth_update_account(
+    @router.patch("/me", name="auth:update_me")
+    async def auth_update_me(
         *,
-        data_in: UpdateAccount,
+        data_in: UpdateMe,
         request: Request,
         user: User = Depends(get_authenticated_user),
     ):
