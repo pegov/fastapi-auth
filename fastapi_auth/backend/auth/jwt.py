@@ -5,13 +5,12 @@ from typing import Optional
 import jwt
 from fastapi import Request, Response
 
+from fastapi_auth.backend.abc import AbstractJWTAuthentication
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.user import User
 
-from .base import BaseJWTAuthentication
 
-
-class JWTCookieAuthentication(BaseJWTAuthentication):
+class JWTCookieAuthentication(AbstractJWTAuthentication):
     def __init__(
         self,
         repo: AuthRepo,

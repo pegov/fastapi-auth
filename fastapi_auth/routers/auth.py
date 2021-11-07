@@ -5,37 +5,34 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import ORJSONResponse
 
-from fastapi_auth.backend.auth.base import BaseJWTAuthentication
-from fastapi_auth.backend.captcha import BaseCaptchaBackend
-from fastapi_auth.backend.email import BaseEmailBackend
+from fastapi_auth.backend.abc import (
+    AbstractCaptchaBackend,
+    AbstractEmailBackend,
+    AbstractJWTAuthentication,
+)
 from fastapi_auth.detail import HTTPExceptionDetail
 from fastapi_auth.models.auth import (
     BaseTokenPayload,
     Create,
     Login,
-    Me,
     Register,
     TokenPayload,
     TokenRefreshResponse,
-    UpdateMe,
-    VerificationStatusResponse,
 )
 from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.auth import request_verification
+from fastapi_auth.services.verify import request_verification
 from fastapi_auth.user import User
 from fastapi_auth.utils.password import get_password_hash, verify_password
-from fastapi_auth.utils.string import hash_string
 
 
-def get_router(
+def get_auth_router(
     repo: AuthRepo,
-    auth_backend: BaseJWTAuthentication,
-    captcha_backend: Optional[BaseCaptchaBackend],
-    email_backend: BaseEmailBackend,
+    auth_backend: AbstractJWTAuthentication,
+    captcha_backend: Optional[AbstractCaptchaBackend],
+    email_backend: AbstractEmailBackend,
     get_authenticated_user: Callable,
     user_token_payload_model: Type[BaseTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
-    change_username_callback: Optional[Callable[[Request, int, str], None]],
     debug: bool,
     enable_captcha: bool,
 ) -> APIRouter:
@@ -147,78 +144,5 @@ def get_router(
 
         auth_backend.set_access_cookie(response, access_token)
         return ORJSONResponse({"access_token": access_token})
-
-    @router.get(
-        "/verify",
-        response_model=VerificationStatusResponse,
-        name="auth:get_verification_status",
-    )
-    async def auth_get_verification_status(
-        *,
-        user: User = Depends(get_authenticated_user),
-    ):
-        return await repo.get(user.id)
-
-    @router.post("/verify", name="auth:request_verification")
-    async def auth_request_verification(
-        *,
-        user: User = Depends(get_authenticated_user),
-    ):
-        item = await repo.get(user.id)
-        if item.get("verified"):
-            raise HTTPException(
-                400, detail=HTTPExceptionDetail.EMAIL_WAS_ALREADY_VERIFIED
-            )
-
-        if not await repo.is_verification_available(user.id):
-            raise HTTPException(429)
-
-        await request_verification(repo, email_backend, item.get("email"))
-
-    @router.post("/verify/{token}", name="auth:verify")
-    async def auth_verify(*, token: str):
-        token_hash = hash_string(token)
-        if not await repo.verify(token_hash):
-            raise HTTPException(404)
-
-    @router.get(
-        "/me",
-        name="auth:get_me",
-        response_model=Me,
-        response_model_exclude_none=True,
-    )
-    async def auth_get_me(
-        *,
-        user: User = Depends(get_authenticated_user),
-    ):
-        return await repo.get(user.id)
-
-    @router.patch("/me", name="auth:update_me")
-    async def auth_update_me(
-        *,
-        data_in: UpdateMe,
-        request: Request,
-        user: User = Depends(get_authenticated_user),
-    ):
-        item = await repo.get(user.id)
-
-        if data_in.username is not None:
-            if data_in.username == item.get("username"):
-                raise HTTPException(400, HTTPExceptionDetail.SAME_USERNAME)
-
-            await repo.change_username(user.id, data_in.username)
-
-            if change_username_callback is not None:
-                if asyncio.iscoroutinefunction(change_username_callback):
-                    await change_username_callback(request, user.id, data_in.username)  # type: ignore
-                else:
-                    change_username_callback(request, user.id, data_in.username)
-
-            # TODO: replace access and refresh token
-
-        if data_in.email is not None:
-            if data_in.email == item.get("email"):
-                raise HTTPException(400, HTTPExceptionDetail.SAME_EMAIL)
-            await repo.change_email(user.id, data_in.email)
 
     return router

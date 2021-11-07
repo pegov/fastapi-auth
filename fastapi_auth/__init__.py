@@ -1,7 +1,6 @@
 from .main import (
-    Auth,
-    AuthApp,
     FastAPIAuth,
+    FastAPIAuthApp,
     admin_required,
     get_authenticated_user,
     get_user,
@@ -9,9 +8,8 @@ from .main import (
 from .user import User
 
 __all__ = [
-    "Auth",
-    "AuthApp",
     "FastAPIAuth",
+    "FastAPIAuthApp",
     "get_user",
     "get_authenticated_user",
     "admin_required",

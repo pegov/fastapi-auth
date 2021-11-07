@@ -1,8 +1,7 @@
 from datetime import datetime
 from typing import Optional, Tuple
 
-from fastapi_auth.backend.cache import BaseCacheBackend
-from fastapi_auth.backend.db import BaseDBBackend
+from fastapi_auth.backend.abc import AbstractCacheBackend, AbstractDBBackend
 
 
 async def _reached_ratelimit(
@@ -20,15 +19,15 @@ async def _reached_ratelimit(
         await cache.incr(rate_key)
         return False
 
-    await cache.set(rate_key, 1, expire=interval)
+    await cache.set(rate_key, 1, ex=interval)
     return False
 
 
 class AuthBase:
     def __init__(
         self,
-        db: Optional[BaseDBBackend],
-        cache: BaseCacheBackend,
+        db: Optional[AbstractDBBackend],
+        cache: AbstractCacheBackend,
         access_expiration: int = 60 * 60 * 6,
         login_ratelimit: int = 30,
         login_timeout: int = 60,
@@ -103,7 +102,7 @@ class AuthBruteforceProtectionMixin(AuthBase):
         rate_key = f"users:login:rate:{ip}"
 
         if await _reached_ratelimit(self._cache, rate_key, self._login_ratelimit, 60):
-            await self._cache.set(timeout_key, 1, expire=self._login_timeout)
+            await self._cache.set(timeout_key, 1, ex=self._login_timeout)
 
         return False
 
@@ -143,7 +142,7 @@ class AuthPasswordMixin(AuthCRUDMixin):
 
     async def set_password_reset_token(self, id: int, token_hash: str) -> None:
         key = f"users:reset:token:{token_hash}"
-        await self._cache.set(key, id, expire=self._password_reset_lifetime)
+        await self._cache.set(key, id, ex=self._password_reset_lifetime)
 
     async def get_id_for_password_reset(self, token_hash: str) -> Optional[int]:
         id = await self._cache.get(f"users:reset:token:{token_hash}")
@@ -182,7 +181,7 @@ class AuthAdminMixin(AuthCRUDMixin):
         key = f"users:blacklist:{id}:{username}"
 
         if active:
-            await self._cache.set(key, 1, expire=self._access_expiration)
+            await self._cache.set(key, 1, ex=self._access_expiration)
         else:
             await self._cache.delete(key)
 
@@ -200,7 +199,7 @@ class AuthAdminMixin(AuthCRUDMixin):
         key = f"users:kick:{id}"
         now = int(datetime.utcnow().timestamp())
 
-        await self._cache.set(key, now, expire=self._access_expiration)
+        await self._cache.set(key, now, ex=self._access_expiration)
 
     async def get_blackout(self) -> Optional[str]:
         return await self._cache.get("users:blackout")

@@ -4,8 +4,7 @@ from typing import Callable, Iterable, Optional, Type
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from fastapi_auth.backend.auth import BaseJWTAuthentication
-from fastapi_auth.backend.oauth import BaseOAuthProvider
+from fastapi_auth.backend.abc import AbstractJWTAuthentication, AbstractOAuthProvider
 from fastapi_auth.models.auth import BaseTokenPayload
 from fastapi_auth.models.oauth import OAuthCreate
 from fastapi_auth.repo import AuthRepo
@@ -13,10 +12,10 @@ from fastapi_auth.services.oauth import resolve_username
 from fastapi_auth.utils.string import create_random_state
 
 
-def get_router(
+def get_oauth_router(
     repo: AuthRepo,
-    auth_backend: BaseJWTAuthentication,
-    oauth_providers: Iterable[BaseOAuthProvider],
+    auth_backend: AbstractJWTAuthentication,
+    oauth_providers: Iterable[AbstractOAuthProvider],
     user_token_payload_model: Type[BaseTokenPayload],
     user_create_hook: Optional[Callable[[dict], None]],
     origin: str,
@@ -26,7 +25,7 @@ def get_router(
     def create_redirect_uri(provider_name: str) -> str:
         return f"{origin}{create_redirect_path_prefix}/{provider_name}/callback"
 
-    def get_provider(provider_name: str) -> BaseOAuthProvider:
+    def get_provider(provider_name: str) -> AbstractOAuthProvider:
         for provider in oauth_providers:
             if provider.name == provider_name:
                 return provider

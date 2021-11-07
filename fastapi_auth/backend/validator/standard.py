@@ -1,14 +1,14 @@
 from string import ascii_letters, digits, punctuation
 from typing import List
 
-from fastapi_auth.backend.validator.base import BaseUserValidator
+from fastapi_auth.backend.abc import AbstractUserValidator
 
 russian_letters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 USERNAME_CHARS = "".join([ascii_letters, russian_letters, digits, "-_"])
 PASSWORD_CHARS = "".join([ascii_letters, digits, punctuation])
 
 
-class StandardUserValidator(BaseUserValidator):
+class StandardUserValidator(AbstractUserValidator):
     def __init__(
         self,
         username_min_length: int = 4,

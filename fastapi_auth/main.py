@@ -2,11 +2,13 @@ from typing import Callable, Iterable, Optional, Type
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 
-from fastapi_auth.backend.auth import BaseJWTAuthentication
-from fastapi_auth.backend.captcha import BaseCaptchaBackend
-from fastapi_auth.backend.email import BaseEmailBackend
-from fastapi_auth.backend.oauth import BaseOAuthProvider
-from fastapi_auth.backend.validator import BaseUserValidator
+from fastapi_auth.backend.abc import (
+    AbstractCaptchaBackend,
+    AbstractEmailBackend,
+    AbstractJWTAuthentication,
+    AbstractOAuthProvider,
+    AbstractUserValidator,
+)
 from fastapi_auth.models.auth import BaseTokenPayload, TokenPayload
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.routers import (
@@ -14,17 +16,21 @@ from fastapi_auth.routers import (
     get_auth_router,
     get_oauth_router,
     get_password_router,
+    get_users_router,
+    get_verify_router,
 )
 from fastapi_auth.user import User
 from fastapi_auth.validator import Validator
 
 
-class Auth:
+class FastAPIAuth:
     def __init__(
         self,
-        auth_backend: BaseJWTAuthentication,
+        app: FastAPI,
+        auth_backend: AbstractJWTAuthentication,
     ) -> None:
         self._auth_backend = auth_backend
+        app.state._fastapi_auth = self
 
     async def get_user(self, request: Request) -> User:
         user = await self._auth_backend.get_user(request)
@@ -48,16 +54,17 @@ class Auth:
         raise HTTPException(403)
 
 
-class AuthApp(Auth):
+class FastAPIAuthApp(FastAPIAuth):
     def __init__(
         self,
+        app: FastAPI,
+        auth_backend: AbstractJWTAuthentication,
         repo: AuthRepo,
-        auth_backend: BaseJWTAuthentication,
-        email_backend: BaseEmailBackend,
-        captcha_backend: Optional[BaseCaptchaBackend],
-        oauth_providers: Iterable[BaseOAuthProvider] = [],
+        email_backend: AbstractEmailBackend,
+        captcha_backend: Optional[AbstractCaptchaBackend],
+        oauth_providers: Iterable[AbstractOAuthProvider] = [],
         user_token_payload_model: Type[BaseTokenPayload] = TokenPayload,
-        user_model_validator: Optional[BaseUserValidator] = None,
+        user_model_validator: Optional[AbstractUserValidator] = None,
         user_create_hook: Optional[Callable[[dict], None]] = None,
         change_username_callback: Optional[Callable[[Request, int, str], None]] = None,
         enable_register_captcha: bool = True,
@@ -67,8 +74,8 @@ class AuthApp(Auth):
         oauth_create_redirect_path_prefix: str = "/auth",  # same as router prefix
         oauth_error_redirect_path: str = "/oauth",
     ):
+        super().__init__(app, auth_backend)
         self._repo = repo
-        self._auth_backend = auth_backend
         self._email_backend = email_backend
         self._captcha_backend = captcha_backend
         self._oauth_providers = oauth_providers
@@ -99,7 +106,6 @@ class AuthApp(Auth):
             get_authenticated_user=self.get_authenticated_user,
             user_token_payload_model=self._user_token_payload_model,
             user_create_hook=self._user_create_hook,
-            change_username_callback=self._change_username_callback,
             debug=self._debug,
             enable_captcha=self._enable_register_captcha,
         )
@@ -135,22 +141,33 @@ class AuthApp(Auth):
             admin_required=self.admin_required,
         )
 
+    @property
+    def users_router(self) -> APIRouter:
+        return get_users_router(
+            repo=self._repo,
+            get_authenticated_user=self.get_authenticated_user,
+            change_username_callback=self._change_username_callback,
+        )
 
-class FastAPIAuth:
-    def __init__(self, app: FastAPI, auth: Auth):
-        app.state._fastapi_auth = auth
+    @property
+    def verify_router(self) -> APIRouter:
+        return get_verify_router(
+            repo=self._repo,
+            email_backend=self._email_backend,
+            get_authenticated_user=self.get_authenticated_user,
+        )
 
 
 async def get_user(request: Request) -> User:
-    auth: Auth = request.state._fastapi_auth
+    auth: FastAPIAuth = request.app.state._fastapi_auth
     return await auth.get_user(request)
 
 
 async def get_authenticated_user(request: Request) -> User:
-    auth: Auth = request.state._fastapi_auth
+    auth: FastAPIAuth = request.app.state._fastapi_auth
     return await auth.get_authenticated_user(request)
 
 
 async def admin_required(request: Request) -> None:
-    auth: Auth = request.state._fastapi_auth
+    auth: FastAPIAuth = request.app.state._fastapi_auth
     await auth.admin_required(request)

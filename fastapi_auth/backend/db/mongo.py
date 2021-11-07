@@ -8,10 +8,10 @@ from motor.motor_asyncio import (
 )
 from pymongo import ReturnDocument
 
-from .base import BaseDBBackend
+from fastapi_auth.backend.abc import AbstractDBBackend
 
 
-class MongoBackend(BaseDBBackend):
+class MongoBackend(AbstractDBBackend):
     def __init__(
         self, client: Optional[AsyncIOMotorClient], database_name: str
     ) -> None:

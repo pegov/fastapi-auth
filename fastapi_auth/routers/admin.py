@@ -8,7 +8,7 @@ from fastapi_auth.models.admin import Blacklist, Blackout, UpdateUser, UserInfo
 from fastapi_auth.repo import AuthRepo
 
 
-def get_router(
+def get_admin_router(
     repo: AuthRepo,
     admin_required: Callable,
 ) -> APIRouter:
@@ -16,9 +16,9 @@ def get_router(
 
     @router.get(
         "/blacklist",
+        name="admin:get_blacklist",
         dependencies=[Depends(admin_required)],
         response_model=Blacklist,
-        name="admin:get_blacklist",
     )
     async def admin_get_blacklist():
         return await repo.get_blacklist()
@@ -33,17 +33,17 @@ def get_router(
 
     @router.get(
         "/blackout",
+        name="admin:get_blackout",
         dependencies=[Depends(admin_required)],
         response_model=Blackout,
-        name="admin:get_blackout",
     )
     async def admin_get_blackout():
         return await repo.get_blackout()
 
     @router.post(
         "/blackout",
-        dependencies=[Depends(admin_required)],
         name="admin:set_blackout",
+        dependencies=[Depends(admin_required)],
     )
     async def admin_set_blackout():
         ts = datetime.utcnow()
@@ -51,24 +51,24 @@ def get_router(
 
     @router.delete(
         "/blackout",
-        dependencies=[Depends(admin_required)],
         name="admin:delete_blackout",
+        dependencies=[Depends(admin_required)],
     )
     async def admin_delete_blackout():
         await repo.delete_blackout()
 
     @router.post(
         "/{id}/kick",
-        dependencies=[Depends(admin_required)],
         name="admin:kick",
+        dependencies=[Depends(admin_required)],
     )
     async def admin_kick(id: int):
         await repo.kick(id)
 
     @router.get(
         "/{id}",
-        dependencies=[Depends(admin_required)],
         name="admin:get_user",
+        dependencies=[Depends(admin_required)],
         response_model=UserInfo,
         response_model_exclude_none=True,
     )
@@ -80,8 +80,8 @@ def get_router(
 
     @router.patch(
         "/{id}",
-        dependencies=[Depends(admin_required)],
         name="admin:update_user",
+        dependencies=[Depends(admin_required)],
     )
     async def admin_update_user(id: int, data_in: UpdateUser):
         user = await repo.get(id)

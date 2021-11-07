@@ -1,10 +1,12 @@
-from fastapi_auth.backend.email.base import BaseEmailBackend
+from fastapi_auth.backend.abc import AbstractEmailBackend
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.utils.string import create_random_string, hash_string
 
 
 async def request_verification(
-    repo: AuthRepo, email_backend: BaseEmailBackend, email: str
+    repo: AuthRepo,
+    email_backend: AbstractEmailBackend,
+    email: str,
 ) -> None:
     token = create_random_string()
     token_hash = hash_string(token)

@@ -3,10 +3,10 @@ from email.mime.text import MIMEText
 
 import aiosmtplib
 
-from .base import BaseEmailBackend
+from fastapi_auth.backend.abc import AbstractEmailBackend
 
 
-class AIOSMTPLibEmailBackend(BaseEmailBackend):
+class AIOSMTPLibEmailBackend(AbstractEmailBackend):
     def __init__(
         self,
         hostname: str,
