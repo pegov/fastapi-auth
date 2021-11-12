@@ -75,7 +75,7 @@ class FastAPIAuthApp(FastAPIAuth):
         oauth_error_redirect_path: str = "/oauth",
     ):
         super().__init__(app, auth_backend)
-        self._repo = repo
+        self.repo = repo
         self._email_backend = email_backend
         self._captcha_backend = captcha_backend
         self._oauth_providers = oauth_providers
@@ -99,7 +99,7 @@ class FastAPIAuthApp(FastAPIAuth):
     @property
     def auth_router(self) -> APIRouter:
         return get_auth_router(
-            repo=self._repo,
+            repo=self.repo,
             auth_backend=self._auth_backend,
             captcha_backend=self._captcha_backend,
             email_backend=self._email_backend,
@@ -113,7 +113,7 @@ class FastAPIAuthApp(FastAPIAuth):
     @property
     def password_router(self) -> APIRouter:
         return get_password_router(
-            repo=self._repo,
+            repo=self.repo,
             email_backend=self._email_backend,
             captcha_backend=self._captcha_backend,
             get_authenticated_user=self.get_authenticated_user,
@@ -124,7 +124,7 @@ class FastAPIAuthApp(FastAPIAuth):
     @property
     def oauth_router(self) -> APIRouter:
         return get_oauth_router(
-            repo=self._repo,
+            repo=self.repo,
             auth_backend=self._auth_backend,
             oauth_providers=self._oauth_providers,
             user_token_payload_model=self._user_token_payload_model,
@@ -137,14 +137,14 @@ class FastAPIAuthApp(FastAPIAuth):
     @property
     def admin_router(self) -> APIRouter:
         return get_admin_router(
-            repo=self._repo,
+            repo=self.repo,
             admin_required=self.admin_required,
         )
 
     @property
     def users_router(self) -> APIRouter:
         return get_users_router(
-            repo=self._repo,
+            repo=self.repo,
             get_authenticated_user=self.get_authenticated_user,
             change_username_callback=self._change_username_callback,
         )
@@ -152,7 +152,7 @@ class FastAPIAuthApp(FastAPIAuth):
     @property
     def verify_router(self) -> APIRouter:
         return get_verify_router(
-            repo=self._repo,
+            repo=self.repo,
             email_backend=self._email_backend,
             get_authenticated_user=self.get_authenticated_user,
         )
