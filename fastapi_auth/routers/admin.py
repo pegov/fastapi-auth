@@ -2,9 +2,8 @@ from datetime import datetime
 from typing import Callable
 
 from fastapi import APIRouter, Depends
-from fastapi.exceptions import HTTPException
 
-from fastapi_auth.models.admin import Blacklist, Blackout, UpdateUser, UserInfo
+from fastapi_auth.models.admin import Blacklist, Blackout
 from fastapi_auth.repo import AuthRepo
 
 
@@ -64,32 +63,5 @@ def get_admin_router(
     )
     async def admin_kick(id: int):
         await repo.kick(id)
-
-    @router.get(
-        "/{id}",
-        name="admin:get_user",
-        dependencies=[Depends(admin_required)],
-        response_model=UserInfo,
-        response_model_exclude_none=True,
-    )
-    async def admin_get_user(id: int):
-        user = await repo.get(id)
-        if user is None:
-            raise HTTPException(404)
-        return user
-
-    @router.patch(
-        "/{id}",
-        name="admin:update_user",
-        dependencies=[Depends(admin_required)],
-    )
-    async def admin_update_user(id: int, data_in: UpdateUser):
-        user = await repo.get(id)
-        if user is None:
-            raise HTTPException(404)
-
-        await repo.update(id, data_in.dict(exclude_none=True))
-
-        # TODO: if username or active => logout
 
     return router
