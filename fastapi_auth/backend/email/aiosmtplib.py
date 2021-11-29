@@ -13,7 +13,6 @@ class AIOSMTPLibEmailBackend(AbstractEmailBackend):
         username: str,
         password: str,
         port: int,
-        mime_from: str,
         verification_subject: str,
         verification_message: str,
         forgot_password_subject: str,
@@ -24,7 +23,6 @@ class AIOSMTPLibEmailBackend(AbstractEmailBackend):
         self._password = password
         self._port = port
 
-        self._from = mime_from
         self._verification_subject = verification_subject
         self._verification_message = verification_message
         self._forgot_password_subject = forgot_password_subject
@@ -32,7 +30,7 @@ class AIOSMTPLibEmailBackend(AbstractEmailBackend):
 
     async def _send_email(self, email: str, subject: str, message: str) -> None:
         msg = MIMEMultipart()
-        msg["From"] = self._from
+        msg["From"] = self._username
         msg["To"] = email
         msg["Subject"] = subject
         msg.attach(MIMEText(message, "html"))
