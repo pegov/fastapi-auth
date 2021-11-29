@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-auth"
-version = "0.8.0"
+version = "0.8.1"
 description = ""
 authors = ["pegov"]
 repository = "https://github.com/pegov/fastapi-auth"
