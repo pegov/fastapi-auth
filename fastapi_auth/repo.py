@@ -5,7 +5,7 @@ from fastapi_auth.backend.abc import AbstractCacheBackend, AbstractDBBackend
 
 
 async def _reached_ratelimit(
-    cache,
+    cache: AbstractCacheBackend,
     rate_key: str,
     ratelimit: int,
     interval: int,
@@ -110,7 +110,9 @@ class AuthBruteforceProtectionMixin(AuthBase):
 class AuthEmailMixin(AuthCRUDMixin):
     async def is_verification_available(self, id: int) -> bool:
         key = f"users:confirm:count:{id}"
-        return await _reached_ratelimit(self, key, self._verification_ratelimit, 1800)
+        return await _reached_ratelimit(
+            self._cache, key, self._verification_ratelimit, 1800
+        )
 
     async def request_verification(self, email: str, token_hash: str) -> None:
         await self._db.request_verification(email, token_hash)
