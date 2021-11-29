@@ -101,7 +101,7 @@ def get_auth_router(
             raise HTTPException(401)
 
         password_hash = user.get("password")
-        if not verify_password(user_in.password, password_hash):
+        if not verify_password(user_in.password, password_hash):  # type: ignore
             raise HTTPException(401)
 
         user_token_payload = TokenPayload(**user)
@@ -109,6 +109,8 @@ def get_auth_router(
             user_token_payload.dict()
         )
         auth_backend.set_login_response(response, access_token, refresh_token)
+
+        asyncio.create_task(repo.update_last_login(user.get("id")))  # type: ignore
 
     @router.post("/logout", name="auth:logout")
     async def auth_logout(

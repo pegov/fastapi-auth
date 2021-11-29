@@ -98,6 +98,9 @@ def get_oauth_router(
         access_token, refresh_token = auth_backend.create_tokens(payload)
         response = RedirectResponse("/")
         auth_backend.set_login_response(response, access_token, refresh_token)
+
+        asyncio.create_task(repo.update_last_login(item.get("id")))  # type: ignore
+
         return response
 
     return router
