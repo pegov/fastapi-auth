@@ -6,6 +6,7 @@ import jwt
 from fastapi import Request, Response
 
 from fastapi_auth.backend.abc import AbstractJWTAuthentication
+from fastapi_auth.models.auth import TokenPayload
 from fastapi_auth.repo import AuthRepo
 from fastapi_auth.user import User
 
@@ -113,7 +114,9 @@ class JWTCookieAuthentication(AbstractJWTAuthentication):
         if await self._active_blackout_exists(data.get("iat")):
             return None
 
-        return self.create_access_token(user)
+        payload = TokenPayload(**user)
+
+        return self.create_access_token(payload.dict())
 
     def _set_cookie(
         self, response: Response, key: str, value: str, expires: int
