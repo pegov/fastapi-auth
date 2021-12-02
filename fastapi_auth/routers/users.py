@@ -41,6 +41,11 @@ def get_users_router(
             if data_in.username == item.get("username"):
                 raise HTTPException(400, HTTPExceptionDetail.SAME_USERNAME)
 
+            existing_username = await repo.get_by_username(data_in.username)
+
+            if existing_username is not None:
+                raise HTTPException(400, HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
+
             await repo.change_username(user.id, data_in.username)
 
             if change_username_callback is not None:
@@ -54,6 +59,12 @@ def get_users_router(
         if data_in.email is not None:
             if data_in.email == item.get("email"):
                 raise HTTPException(400, HTTPExceptionDetail.SAME_EMAIL)
+
+            existing_email = await repo.get_by_email(data_in.email)
+
+            if existing_email is not None:
+                raise HTTPException(400, HTTPExceptionDetail.EMAIL_ALREADY_EXISTS)
+
             await repo.change_email(user.id, data_in.email)
 
     return router
