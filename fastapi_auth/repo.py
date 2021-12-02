@@ -110,7 +110,7 @@ class AuthBruteforceProtectionMixin(AuthBase):
 class AuthEmailMixin(AuthCRUDMixin):
     async def is_verification_available(self, id: int) -> bool:
         key = f"users:confirm:count:{id}"
-        return await _reached_ratelimit(
+        return not await _reached_ratelimit(
             self._cache, key, self._verification_ratelimit, 1800
         )
 
