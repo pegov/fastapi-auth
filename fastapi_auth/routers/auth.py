@@ -134,7 +134,6 @@ def get_auth_router(
     async def auth_refresh_access_token(
         *,
         request: Request,
-        response: Response,
     ):
         refresh_token = auth_backend.get_refresh_token_from_request(request)
         if refresh_token is None:
@@ -144,7 +143,8 @@ def get_auth_router(
         if access_token is None:
             raise HTTPException(401)
 
+        response = ORJSONResponse({"access_token": access_token})
         auth_backend.set_access_cookie(response, access_token)
-        return ORJSONResponse({"access_token": access_token})
+        return response
 
     return router
