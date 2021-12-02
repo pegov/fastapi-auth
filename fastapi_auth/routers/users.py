@@ -49,7 +49,7 @@ def get_users_router(
                 else:
                     change_username_callback(request, user.id, data_in.username)
 
-            # TODO: replace access and refresh token
+            # NOTE: refresh access token on frontend
 
         if data_in.email is not None:
             if data_in.email == item.get("email"):
