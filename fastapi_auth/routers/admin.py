@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Callable
 
 from fastapi import APIRouter, Depends
@@ -36,7 +37,16 @@ def get_admin_router(
         response_model=Blackout,
     )
     async def admin_get_blackout_status():
-        return await repo.get_blackout_status()
+        ts = await repo.get_blackout_ts()
+        if ts is not None:
+            return {
+                "active": True,
+                "date": datetime.fromtimestamp(ts),
+            }
+
+        return {
+            "active": False,
+        }
 
     @router.post(
         "/blackout",

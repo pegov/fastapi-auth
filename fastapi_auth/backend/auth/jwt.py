@@ -78,11 +78,8 @@ class JWTCookieAuthentication(AbstractJWTAuthentication):
         return None
 
     async def _active_blackout_exists(self, iat: int) -> bool:
-        active_blackout = await self._repo.get_blackout()
-        if active_blackout is None:
-            return False
-
-        return int(active_blackout) >= iat
+        ts = await self._repo.get_blackout_ts()
+        return ts is not None and ts >= iat
 
     async def _user_in_blacklist(self, id: int) -> bool:
         # NOTE: maybe move logic here
