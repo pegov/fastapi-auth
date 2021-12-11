@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Callable
 
 from fastapi import APIRouter, Depends
@@ -32,29 +31,28 @@ def get_admin_router(
 
     @router.get(
         "/blackout",
-        name="admin:get_blackout",
+        name="admin:get_blackout_status",
         dependencies=[Depends(admin_required)],
         response_model=Blackout,
     )
-    async def admin_get_blackout():
-        return await repo.get_blackout()
+    async def admin_get_blackout_status():
+        return await repo.get_blackout_status()
 
     @router.post(
         "/blackout",
-        name="admin:set_blackout",
+        name="admin:activate_blackout",
         dependencies=[Depends(admin_required)],
     )
-    async def admin_set_blackout():
-        ts = datetime.utcnow()
-        await repo.set_blackout(ts)
+    async def admin_activate_blackout():
+        await repo.activate_blackout()
 
     @router.delete(
         "/blackout",
-        name="admin:delete_blackout",
+        name="admin:deactivate_blackout",
         dependencies=[Depends(admin_required)],
     )
-    async def admin_delete_blackout():
-        await repo.delete_blackout()
+    async def admin_deactivate_blackout():
+        await repo.deactivate_blackout()
 
     @router.post(
         "/{id}/kick",

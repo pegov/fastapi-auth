@@ -203,13 +203,23 @@ class AuthAdminMixin(AuthCRUDMixin):
 
         await self._cache.set(key, now, ex=self._access_expiration)
 
-    async def get_blackout(self) -> Optional[str]:
-        return await self._cache.get("users:blackout")
+    async def get_blackout_status(self) -> dict:
+        ts = await self._cache.get("users:blackout")
+        if ts is not None:
+            return {
+                "active": True,
+                "date": datetime.utcfromtimestamp(int(ts)),
+            }
 
-    async def set_blackout(self, ts: int) -> None:
+        return {
+            "active": False,
+        }
+
+    async def activate_blackout(self) -> None:
+        ts = int(datetime.utcnow().timestamp())
         await self._cache.set("users:blackout", ts)
 
-    async def delete_blackout(self) -> None:
+    async def deactivate_blackout(self) -> None:
         await self._cache.delete("users:blackout")
 
     async def set_permissions(self) -> None:

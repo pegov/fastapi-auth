@@ -1,4 +1,5 @@
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -14,4 +15,5 @@ class Blacklist(BaseModel):
 
 
 class Blackout(BaseModel):
-    ts: int
+    active: bool
+    date: Optional[datetime] = None
