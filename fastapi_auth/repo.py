@@ -29,6 +29,7 @@ class AuthBase:
         db: Optional[AbstractDBBackend],
         cache: AbstractCacheBackend,
         access_expiration: int = 60 * 60 * 6,
+        refresh_expiration: int = 60 * 60 * 24 * 30,
         login_ratelimit: int = 30,
         login_timeout: int = 60,
         password_reset_max: int = 2,
@@ -39,6 +40,7 @@ class AuthBase:
         self._db = db
         self._cache = cache
         self._access_expiration = access_expiration
+        self._refresh_expiration = refresh_expiration
 
         self._login_ratelimit = login_ratelimit
         self._login_timeout = login_timeout
@@ -212,7 +214,7 @@ class AuthAdminMixin(AuthCRUDMixin):
 
     async def activate_blackout(self) -> None:
         ts = int(datetime.utcnow().timestamp())
-        await self._cache.set("users:blackout", ts)
+        await self._cache.set("users:blackout", ts, ex=self._refresh_expiration)
 
     async def deactivate_blackout(self) -> None:
         await self._cache.delete("users:blackout")
