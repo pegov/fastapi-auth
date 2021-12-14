@@ -27,7 +27,7 @@ class GoogleOAuthProvider(BaseOAuthProvider):
 
         data = response.json()
         id_token = data.get("id_token")
-        payload = jwt.decode(id_token, verify=False)
+        payload = jwt.decode(id_token, options={"verify_signature": False})
         sid = payload.get("sub")
         email = payload.get("email")
 
