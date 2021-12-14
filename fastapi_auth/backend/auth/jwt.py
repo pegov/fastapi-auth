@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
@@ -37,7 +37,7 @@ class JWTCookieAuthentication(AbstractJWTAuthentication):
     def _create_token(
         self, payload: dict, token_type: str, expiration_delta: int
     ) -> str:
-        iat = datetime.utcnow()
+        iat = datetime.now(timezone.utc)
         exp = iat + timedelta(seconds=expiration_delta)
 
         payload.update(

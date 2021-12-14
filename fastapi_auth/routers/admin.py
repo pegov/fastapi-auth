@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable
 
 from fastapi import APIRouter, Depends
@@ -41,7 +41,7 @@ def get_admin_router(
         if ts is not None:
             return {
                 "active": True,
-                "date": datetime.fromtimestamp(ts),
+                "date": datetime.fromtimestamp(ts, tz=timezone.utc),
             }
 
         return {

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from fastapi_auth.backend.abc import AbstractCacheBackend, AbstractDBBackend
@@ -201,7 +201,7 @@ class AuthAdminMixin(AuthCRUDMixin):
 
     async def kick(self, id: int) -> None:
         key = f"users:kick:{id}"
-        now = int(datetime.utcnow().timestamp())
+        now = int(datetime.now(timezone.utc).timestamp())
 
         await self._cache.set(key, now, ex=self._access_expiration)
 
@@ -213,7 +213,7 @@ class AuthAdminMixin(AuthCRUDMixin):
         return None
 
     async def activate_blackout(self) -> None:
-        ts = int(datetime.utcnow().timestamp())
+        ts = int(datetime.now(timezone.utc).timestamp())
         await self._cache.set("users:blackout", ts, ex=self._refresh_expiration)
 
     async def deactivate_blackout(self) -> None:
