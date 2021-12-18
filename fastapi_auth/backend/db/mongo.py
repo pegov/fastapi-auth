@@ -24,10 +24,9 @@ class MongoBackend(AbstractDBBackend):
         self._db: AsyncIOMotorDatabase = client[self._database_name]
         self._users: AsyncIOMotorCollection = self._db["users"]
         self._email_verifications: AsyncIOMotorCollection = self._db[
-            "email_verifications"
+            "users.verifications"
         ]
         self._counters: AsyncIOMotorCollection = self._db["counters"]
-        self._settings: AsyncIOMotorCollection = self._db["settings"]
 
     async def _increment_id(self) -> int:
         res = await self._counters.find_one_and_update(
