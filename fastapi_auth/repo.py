@@ -137,7 +137,7 @@ class AuthPasswordMixin(AuthCRUDMixin):
 
     async def is_password_reset_available(self, id: int) -> bool:
         key = f"users:reset:count:{id}"
-        return await _reached_ratelimit(
+        return not await _reached_ratelimit(
             self._cache,
             key,
             self._password_reset_max,
