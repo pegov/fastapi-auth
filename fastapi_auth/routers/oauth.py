@@ -75,6 +75,11 @@ def get_oauth_router(
                     f"{error_redirect_path}?message=email_already_exists"
                 )
 
+            if provider.is_login_only():
+                return RedirectResponse(
+                    f"{error_redirect_path}?message=login_only",
+                )
+
             username = await resolve_username(repo, email)
 
             user = OAuthCreate(
