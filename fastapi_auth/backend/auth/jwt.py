@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import jwt
 from fastapi import Request, Response
@@ -17,8 +17,8 @@ class JWTCookieAuthentication(AbstractJWTAuthentication):
         repo: AuthRepo,
         debug: bool = False,
         algorithm: str = "RS256",
-        private_key: str = "",
-        public_key: str = "",
+        private_key: Any = "",
+        public_key: Any = "",
         access_token_cookie_name: str = "access",
         access_token_expiration: int = 60 * 60 * 6,
         refresh_token_cookie_name: str = "refresh",
