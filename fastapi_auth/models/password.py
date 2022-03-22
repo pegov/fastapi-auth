@@ -1,30 +1,38 @@
 from typing import Optional
 
-from pydantic import validator
+from pydantic import BaseModel, validator
 
 from fastapi_auth.models.common import DefaultModel
-from fastapi_auth.validator import Validator
+from fastapi_auth.types import UID
+from fastapi_auth.validator import GlobalValidator
 
 
-class PasswordForgot(DefaultModel):
+class PasswordForgotRequest(BaseModel):
     email: str
     captcha: Optional[str] = None
 
 
-class PasswordSet(DefaultModel):
+class PasswordSetRequest(DefaultModel):
     password1: str
     password2: str
 
-    _check_password2 = validator("password2")(Validator._validator.validate_password)
+    _check_password2 = validator("password2")(
+        GlobalValidator._validator.validate_password
+    )
 
 
-class PasswordStatus(DefaultModel):
-    has_password: bool
-
-
-class PasswordChange(PasswordSet):
+class PasswordChangeRequest(PasswordSetRequest):
     old_password: str
 
 
-class PasswordReset(PasswordSet):
+class PasswordStatusResponse(DefaultModel):
+    has_password: bool
+
+
+class PasswordResetRequest(PasswordSetRequest):
     token: str
+
+
+class PasswordResetToken(BaseModel):
+    id: UID
+    type: str

@@ -1,4 +1,4 @@
-from fastapi_auth.backend.abc import AbstractOAuthProvider
+from fastapi_auth.backend.abc.oauth import AbstractOAuthProvider
 
 
 class BaseOAuthProvider(AbstractOAuthProvider):

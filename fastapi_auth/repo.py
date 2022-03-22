@@ -1,233 +1,162 @@
+import asyncio
 from datetime import datetime, timezone
-from typing import Optional, Tuple
+from typing import Any, Optional
 
-from fastapi_auth.backend.abc import AbstractCacheBackend, AbstractDBBackend
-
-
-async def _reached_ratelimit(
-    cache: AbstractCacheBackend,
-    rate_key: str,
-    ratelimit: int,
-    interval: int,
-) -> bool:
-    rate = await cache.get(rate_key)
-    if rate is not None:
-        rate = int(rate)
-        if rate > ratelimit:
-            return True
-
-        await cache.incr(rate_key)
-        return False
-
-    await cache.set(rate_key, 1, ex=interval)
-    return False
+from fastapi_auth.backend.abc.cache import AbstractCacheClient
+from fastapi_auth.backend.abc.db import AbstractDatabaseClient
+from fastapi_auth.errors import TokenAlreadyUsedError, UserNotFoundError
+from fastapi_auth.models.user import UserDB, UserUpdate
+from fastapi_auth.types import UID
 
 
-class AuthBase:
+class Repo:
+    rate_key_prefix: str = "users:rate"
+    used_token_key_prefix: str = "users:used_token"
+    timeout_key_prefix: str = "users:timeout"
+    mass_logout_key: str = "users:mass_logout"
+    ban_key_prefix: str = "users:ban"
+    kick_key_prefix: str = "users:kick"
+
     def __init__(
         self,
-        db: Optional[AbstractDBBackend],
-        cache: AbstractCacheBackend,
-        access_expiration: int = 60 * 60 * 6,
-        refresh_expiration: int = 60 * 60 * 24 * 30,
-        login_ratelimit: int = 30,
-        login_timeout: int = 60,
-        password_reset_max: int = 2,
-        password_reset_timeout: int = 60 * 60,
-        password_reset_lifetime: int = 60 * 60,
-        verification_ratelimit: int = 2,
+        db: AbstractDatabaseClient,
+        cache: AbstractCacheClient,
+        access_token_expiration: int,
+        refresh_token_expiration: int,
     ) -> None:
-        self._db = db
-        self._cache = cache
-        self._access_expiration = access_expiration
-        self._refresh_expiration = refresh_expiration
+        self.db = db
+        self.cache = cache
+        self.access_token_expiration = access_token_expiration
+        self.refresh_token_expiration = refresh_token_expiration
 
-        self._login_ratelimit = login_ratelimit
-        self._login_timeout = login_timeout
+    async def get(self, id: UID) -> UserDB:
+        return await self.db.get(id)
 
-        self._password_reset_max = password_reset_max
-        self._password_reset_timeout = password_reset_timeout
-        self._password_reset_lifetime = password_reset_lifetime
+    async def get_by_email(self, email: str) -> UserDB:
+        return await self.db.get_by_email(email)
 
-        self._verification_ratelimit = verification_ratelimit
+    async def get_by_username(self, username: str) -> UserDB:
+        return await self.db.get_by_username(username)
 
-
-class AuthCRUDMixin(AuthBase):
-    async def get(self, id: int) -> Optional[dict]:
-        return await self._db.get(id)
-
-    async def get_by_email(self, email: str) -> Optional[dict]:
-        return await self._db.get_by_email(email)
-
-    async def get_by_username(self, username: str) -> Optional[dict]:
-        return await self._db.get_by_username(username)
-
-    async def get_by_social(self, provider: str, sid: str) -> Optional[dict]:
-        return await self._db.get_by_social(provider, str(sid))
-
-    async def get_by_login(self, login: str) -> Optional[dict]:
+    async def get_by_login(self, login: str) -> UserDB:
         if "@" in login:
-            user = await self.get_by_email(login)
-            if user is not None:
-                return user
+            try:
+                return await self.get_by_email(login)
+            except UserNotFoundError:
+                pass
 
         return await self.get_by_username(login)
 
-    async def create(self, obj: dict) -> int:
-        return await self._db.create(obj)
+    async def get_by_oauth(self, provider: str, sid: str) -> UserDB:
+        return await self.db.get_by_oauth(provider, str(sid))
 
-    async def update(self, id: int, obj: dict) -> None:
-        await self._db.update(id, obj)
+    async def create(self, obj: dict) -> UID:
+        return await self.db.create(obj)
+
+    async def update(self, id: UID, obj: dict) -> None:
+        await self.db.update(id, obj)
         return None
 
-    async def delete(self, id: int) -> None:
-        await self._db.delete(id)
+    async def delete(self, id: UID) -> None:
+        await self.db.delete(id)
         return None
 
-    async def update_last_login(self, id: int) -> None:
-        await self.update(id, {"last_login": datetime.utcnow()})
-
-    async def search(
-        self, id: int, username: str, p: int, size: int
-    ) -> Tuple[dict, int]:
-        return await self._db.search(id, username, p, size)
-
-
-class AuthBruteforceProtectionMixin(AuthBase):
-    async def ip_has_timeout(self, ip: str) -> bool:
-        timeout_key = f"users:login:timeout:{ip}"
-        timeout = await self._cache.get(timeout_key)
-
-        if timeout is not None:
-            return True
-
-        rate_key = f"users:login:rate:{ip}"
-
-        if await _reached_ratelimit(self._cache, rate_key, self._login_ratelimit, 60):
-            await self._cache.set(timeout_key, 1, ex=self._login_timeout)
-
-        return False
-
-
-class AuthEmailMixin(AuthCRUDMixin):
-    async def is_verification_available(self, id: int) -> bool:
-        key = f"users:confirm:count:{id}"
-        return not await _reached_ratelimit(
-            self._cache, key, self._verification_ratelimit, 1800
+    async def ban(self, id: UID) -> None:
+        await self.db.update(
+            id,
+            UserUpdate(active=False).to_update_dict(),
+        )
+        await self.cache.set(
+            f"{self.ban_key_prefix}:{id}",
+            1,
+            ex=self.access_token_expiration,
         )
 
-    async def request_verification(self, email: str, token_hash: str) -> None:
-        await self._db.request_verification(email, token_hash)
+    async def unban(self, id: UID) -> None:
+        await self.db.update(
+            id,
+            UserUpdate(active=True).to_update_dict(),
+        )
+        await self.cache.delete(f"{self.ban_key_prefix}:{id}")
 
-    async def verify(self, token_hash: str) -> bool:
-        return await self._db.verify(token_hash)
+    async def user_was_recently_banned(self, id: UID) -> bool:
+        return bool(await self.cache.get(f"{self.ban_key_prefix}:{id}"))
 
+    async def kick(self, id: UID) -> None:
+        ts = int(datetime.now(timezone.utc).timestamp())
+        await self.cache.set(
+            f"{self.kick_key_prefix}:{id}",
+            ts,
+            ex=self.refresh_token_expiration,
+        )
 
-class AuthAccountMixin(AuthCRUDMixin):
-    async def change_username(self, id: int, new_username: str) -> None:
-        await self.update(id, {"username": new_username})
+    async def unkick(self, id: UID) -> None:
+        await self.cache.delete(f"{self.kick_key_prefix}:{id}")
 
-    async def change_email(self, id: int, new_email: str) -> None:
-        await self.update(id, {"email": new_email, "verified": False})
-
-
-class AuthPasswordMixin(AuthCRUDMixin):
-    async def set_password(self, id: int, password: str) -> None:
-        await self.update(id, {"password": password})
-
-    async def is_password_reset_available(self, id: int) -> bool:
-        key = f"users:reset:count:{id}"
-        return not await _reached_ratelimit(
-            self._cache,
-            key,
-            self._password_reset_max,
-            self._password_reset_timeout,
-        )  # type: ignore
-
-    async def set_password_reset_token(self, id: int, token_hash: str) -> None:
-        key = f"users:reset:token:{token_hash}"
-        await self._cache.set(key, id, ex=self._password_reset_lifetime)
-
-    async def get_id_for_password_reset(self, token_hash: str) -> Optional[int]:
-        id = await self._cache.get(f"users:reset:token:{token_hash}")
-        if id is not None:
-            return int(id)
-        else:
-            return None
-
-
-class AuthAdminMixin(AuthCRUDMixin):
-    async def get_blacklist(self) -> dict:
-        blacklist_db = await self._db.get_blacklist()
-
-        blacklist_cache_keys = await self._cache.keys("users:blacklist:*")
-        blacklist_cache = []
-        for key in blacklist_cache_keys:
-            _, _, id, username = key.split(":", maxsplit=3)
-            blacklist_cache.append(
-                {
-                    "id": id,
-                    "username": username,
-                }
-            )
-
-        return {
-            "all": blacklist_db,
-            "recent": blacklist_cache,
-        }
-
-    async def toggle_blacklist(self, id: int) -> None:
-        item = await self.get(id)  # type: ignore
-        active = item.get("active")
-        await self.update(id, {"active": not active})
-
-        username = item.get("username")
-        key = f"users:blacklist:{id}:{username}"
-
-        if active:
-            await self._cache.set(key, 1, ex=self._access_expiration)
-        else:
-            await self._cache.delete(key)
-
-    async def user_was_recently_banned(self, id: int) -> bool:
-        return bool(await self._cache.get(f"users:blacklist:{id}"))
-
-    async def user_was_kicked(self, id: int, iat: int) -> bool:
-        ts = await self._cache.get(f"users:kick:{id}")
+    async def user_was_kicked(self, id: UID, iat: int) -> bool:
+        ts = await self.cache.get(f"{self.kick_key_prefix}:{id}")
         if ts is None:
             return False
 
         return int(ts) >= iat
 
-    async def kick(self, id: int) -> None:
-        key = f"users:kick:{id}"
-        now = int(datetime.now(timezone.utc).timestamp())
+    async def activate_mass_logout(self) -> None:
+        ts = int(datetime.now(timezone.utc).timestamp())
+        await self.cache.set(
+            self.mass_logout_key,
+            ts,
+            ex=self.refresh_token_expiration,
+        )
 
-        await self._cache.set(key, now, ex=self._access_expiration)
+    async def deactivate_mass_logout(self) -> None:
+        await self.cache.delete(self.mass_logout_key)
 
-    async def get_blackout_ts(self) -> Optional[int]:
-        ts = await self._cache.get("users:blackout")
+    async def get_mass_logout_ts(self) -> Optional[int]:
+        ts = await self.cache.get(self.mass_logout_key)
         if ts is not None:
             return int(ts)
 
         return None
 
-    async def activate_blackout(self) -> None:
-        ts = int(datetime.now(timezone.utc).timestamp())
-        await self._cache.set("users:blackout", ts, ex=self._refresh_expiration)
+    async def user_in_mass_logout(self, iat: int) -> bool:
+        ts = await self.get_mass_logout_ts()
+        if ts is None:
+            return False
 
-    async def deactivate_blackout(self) -> None:
-        await self._cache.delete("users:blackout")
+        return int(ts) >= iat
 
-    async def set_permissions(self) -> None:
-        pass
+    async def verify(self, email: str) -> None:
+        item = await self.db.get_by_email(email)
 
+        await self.db.update(
+            item.id,
+            UserUpdate(verified=True).to_update_dict(),
+        )
 
-class AuthRepo(
-    AuthBruteforceProtectionMixin,
-    AuthEmailMixin,
-    AuthAccountMixin,
-    AuthPasswordMixin,
-    AuthAdminMixin,
-):
-    pass
+    async def use_token(self, token: str, ex: int) -> None:
+        key = f"users:used_token:{token}"
+        res = await self.cache.setnx(key, 1, ex=ex)
+        if not res:
+            raise TokenAlreadyUsedError
+
+    async def rate_limit_reached(
+        self,
+        type: str,
+        rate: int,
+        interval: int,
+        timeout: int,
+        id: Any,
+    ) -> bool:
+        timeout_key = f"{self.timeout_key_prefix}:{type}:{id}"
+        if await self.cache.get(timeout_key) is not None:
+            return True
+
+        cur = await self.cache.incr(f"{self.rate_key_prefix}:{type}:{id}")
+        if cur == 1:
+            asyncio.create_task(self.cache.expire(type, interval))
+
+        if cur >= rate:
+            await self.cache.set(timeout_key, 1, ex=timeout)
+            return True
+
+        return False

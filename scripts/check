@@ -5,6 +5,6 @@ export SOURCE_FILES="fastapi_auth"
 
 set -x
 
-${PREFIX} flake8 $SOURCE_FILES --ignore=E501,E722,W503 --exclude=__init__.py
+${PREFIX} flake8 $SOURCE_FILES --ignore=E501,W503 --exclude=__init__.py
 ${PREFIX} black --check --diff --target-version=py38 $SOURCE_FILES
 ${PREFIX} mypy $SOURCE_FILES

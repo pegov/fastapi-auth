@@ -10,7 +10,14 @@ class GoogleOAuthProvider(BaseOAuthProvider):
     name: str = "google"
 
     def create_oauth_uri(self, redirect_uri: str, state: str) -> str:
-        return f"https://accounts.google.com/o/oauth2/v2/auth?scope=email%20profile&response_type=code&state={state}&redirect_uri={redirect_uri}&client_id={self._id}"
+        return (
+            f"https://accounts.google.com/o/oauth2/v2/auth"
+            "?scope=email%20profile"
+            "&response_type=code"
+            f"&state={state}"
+            f"&redirect_uri={redirect_uri}"
+            f"&client_id={self._id}"
+        )
 
     async def get_user_data(self, redirect_uri: str, code: str) -> Tuple[str, str]:
         async with AsyncClient(base_url="https://oauth2.googleapis.com") as client:

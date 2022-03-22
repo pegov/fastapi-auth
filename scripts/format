@@ -7,4 +7,4 @@ set -x
 
 ${PREFIX} autoflake --remove-all-unused-imports --in-place --recursive $SOURCE_FILES --exclude=__init__.py
 ${PREFIX} isort $SOURCE_FILES
-${PREFIX} black --target-version=py38 $SOURCE_FILES
+${PREFIX} black $SOURCE_FILES

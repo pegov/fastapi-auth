@@ -1,5 +1,4 @@
-import re
-from typing import Iterable, Optional, Tuple
+from typing import Optional, Type
 
 from motor.motor_asyncio import (
     AsyncIOMotorClient,
@@ -8,16 +7,24 @@ from motor.motor_asyncio import (
 )
 from pymongo import ReturnDocument
 
-from fastapi_auth.backend.abc import AbstractDBBackend
+from fastapi_auth.backend.abc.db import AbstractDatabaseClient
+from fastapi_auth.errors import UserNotFoundError
+from fastapi_auth.models.user import UserDB
+from fastapi_auth.types import UID
 
 
-class MongoBackend(AbstractDBBackend):
+class MongoClient(AbstractDatabaseClient):
     def __init__(
-        self, client: Optional[AsyncIOMotorClient], database_name: str
+        self,
+        client: Optional[AsyncIOMotorClient],
+        database_name: str,
+        db_model: Type[UserDB],
     ) -> None:
         self._database_name = database_name
         if client is not None:
             self.set_client(client)
+
+        self._db_model = db_model
 
     def set_client(self, client: AsyncIOMotorClient) -> None:
         self._client = client
@@ -36,21 +43,29 @@ class MongoBackend(AbstractDBBackend):
         )
         return res.get("c")
 
-    async def get(self, id: int) -> Optional[dict]:
-        return await self._users.find_one({"id": id}, {"_id": 0})
+    async def _get(
+        self,
+        obj: dict,
+    ) -> UserDB:
+        item = await self._users.find_one(obj, {"_id": 0})
+        if item is not None:
+            return self._db_model(**item)
 
-    async def get_by_email(self, email: str) -> Optional[dict]:
-        return await self._users.find_one({"email": email}, {"_id": 0})
+        raise UserNotFoundError
 
-    async def get_by_username(self, username: str) -> Optional[dict]:
-        return await self._users.find_one({"username": username}, {"_id": 0})
+    async def get(self, id: UID) -> UserDB:
+        return await self._get({"id": id})
 
-    async def get_by_social(self, provider: str, sid: str) -> Optional[dict]:
-        return await self._users.find_one(
-            {"provider": provider, "sid": str(sid)}, {"_id": 0}
-        )
+    async def get_by_email(self, email: str) -> UserDB:
+        return await self._get({"email": email})
 
-    async def create(self, obj: dict) -> int:
+    async def get_by_username(self, username: str) -> UserDB:
+        return await self._get({"username": username})
+
+    async def get_by_oauth(self, provider: str, sid: str) -> UserDB:
+        return await self._get({"oauth.provider": provider, "oauth.sid": sid})
+
+    async def create(self, obj: dict) -> UID:
         async with await self._client.start_session() as session:
             async with session.start_transaction():
                 id = await self._increment_id()
@@ -58,55 +73,13 @@ class MongoBackend(AbstractDBBackend):
                 await self._users.insert_one(obj)
         return id
 
-    async def update(self, id: int, obj: dict) -> bool:
-        res = await self._users.update_one({"id": id}, {"$set": obj})
+    async def update(self, id: UID, obj: dict) -> bool:
+        res = await self._users.update_one(
+            {"id": id},
+            {"$set": obj},
+        )
         return bool(res.matched_count)
 
-    async def delete(self, id: int) -> bool:
+    async def delete(self, id: UID) -> bool:
         res = await self._users.delete_one({"id": id})
         return bool(res.deleted_count)
-
-    async def count(self, query: Optional[dict] = None) -> int:
-        return await self._users.count_documents(query)
-
-    async def request_verification(self, email: str, token_hash: str) -> None:
-        await self._email_verifications.update_one(
-            {"email": email}, {"$set": {"token": token_hash}}, upsert=True
-        )
-        return None
-
-    async def verify(self, token_hash: str) -> bool:
-        ec = await self._email_verifications.find_one({"token": token_hash})
-        if ec is not None:
-            email = ec.get("email")
-            async with await self._client.start_session() as session:
-                async with session.start_transaction():
-                    await self._users.update_one(
-                        {"email": email}, {"$set": {"verified": True}}
-                    )
-                    await self._email_verifications.delete_many({"email": email})
-            return True
-        else:
-            return False
-
-    async def get_blacklist(self) -> Iterable[dict]:
-        return await self._users.find(
-            {"active": False}, {"_id": 0, "id": 1, "username": 1}
-        ).to_list(None)
-
-    async def search(
-        self, id: Optional[int], username: Optional[str], p: int, size: int
-    ) -> Tuple[dict, int]:
-        if id is not None:
-            f = {"id": id}
-        if username is not None and id is None:
-            f = {"username": re.compile(username, re.IGNORECASE)}  # type: ignore
-
-        count = await self._users.count_documents(f)
-        items = (
-            await self._users.find(f, {"_id": 0})
-            .skip((p - 1) * size)
-            .limit(size)
-            .to_list(None)
-        )
-        return items, count

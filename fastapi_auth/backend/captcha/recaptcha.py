@@ -2,14 +2,14 @@ from typing import Optional
 
 from httpx import AsyncClient
 
-from fastapi_auth.backend.abc import AbstractCaptchaBackend
+from fastapi_auth.backend.abc.captcha import AbstractCaptchaClient
 
 
-class RecaptchaBackend(AbstractCaptchaBackend):
+class RecaptchaClient(AbstractCaptchaClient):
     def __init__(self, secret: str) -> None:
         self._secret = secret
 
-    async def validate_captcha(self, captcha: Optional[str]) -> bool:
+    async def validate(self, captcha: Optional[str]) -> bool:
         if captcha is None:
             return False
 

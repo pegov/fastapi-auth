@@ -1,75 +1,70 @@
-from datetime import datetime, timezone
-from typing import Callable
-
 from fastapi import APIRouter, Depends
 
-from fastapi_auth.models.admin import Blacklist, Blackout
-from fastapi_auth.repo import AuthRepo
+from fastapi_auth.dependencies import admin_required
+from fastapi_auth.models.admin import MassLogoutStatusResponse, SetRolesRequest
+from fastapi_auth.services.admin import AdminService
 
 
 def get_admin_router(
-    repo: AuthRepo,
-    admin_required: Callable,
+    service: AdminService,
 ) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(admin_required)])
 
     @router.get(
-        "/blacklist",
-        name="admin:get_blacklist",
-        dependencies=[Depends(admin_required)],
-        response_model=Blacklist,
+        "/mass_logout",
+        name="admin:get_mass_logout_status",
+        response_model=MassLogoutStatusResponse,
     )
-    async def admin_get_blacklist():
-        return await repo.get_blacklist()
+    async def admin_get_mass_logout_status():
+        await service.get_mass_logout_status()
+
+    @router.post(
+        "/mass_logout",
+        name="admin:activate_mass_logout",
+    )
+    async def admin_activate_mass_logout():
+        await service.activate_mass_logout()
+
+    @router.delete(
+        "/mass_logout",
+        name="admin:deactivate_mass_logout",
+    )
+    async def admin_deactivate_mass_logout():
+        return await service.deactivate_mass_logout()
 
     @router.post(
         "/{id}/ban",
-        dependencies=[Depends(admin_required)],
-        name="admin:toggle_blacklist",
+        name="admin:ban",
     )
-    async def admin_toggle_blacklist(id: int):
-        await repo.toggle_blacklist(id)
-
-    @router.get(
-        "/blackout",
-        name="admin:get_blackout_status",
-        dependencies=[Depends(admin_required)],
-        response_model=Blackout,
-    )
-    async def admin_get_blackout_status():
-        ts = await repo.get_blackout_ts()
-        if ts is not None:
-            return {
-                "active": True,
-                "date": datetime.fromtimestamp(ts, tz=timezone.utc),
-            }
-
-        return {
-            "active": False,
-        }
+    async def admin_ban(id: int):
+        await service.ban(id)
 
     @router.post(
-        "/blackout",
-        name="admin:activate_blackout",
-        dependencies=[Depends(admin_required)],
+        "/{id}/unban",
+        name="admin:unban",
     )
-    async def admin_activate_blackout():
-        await repo.activate_blackout()
-
-    @router.delete(
-        "/blackout",
-        name="admin:deactivate_blackout",
-        dependencies=[Depends(admin_required)],
-    )
-    async def admin_deactivate_blackout():
-        await repo.deactivate_blackout()
+    async def admin_unban(id: int):
+        await service.unban(id)
 
     @router.post(
         "/{id}/kick",
         name="admin:kick",
-        dependencies=[Depends(admin_required)],
     )
     async def admin_kick(id: int):
-        await repo.kick(id)
+        await service.kick(id)
+
+    @router.post(
+        "/{id}/unkick",
+        name="admin:unkick",
+    )
+    async def admin_unkick(id: int):
+        await service.unkick(id)
+
+    @router.put(
+        "/{id}/roles",
+        name="admin:set_roles",
+    )
+    async def admin_set_roles(id: int, data_in: SetRolesRequest):
+        await service.set_roles(id, data_in.roles)
 
     return router

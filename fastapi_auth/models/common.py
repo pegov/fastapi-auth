@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import BaseConfig, BaseModel
 
 
@@ -14,11 +12,3 @@ class DefaultModel(BaseModel):
     class Config(BaseConfig):
         allow_population_by_field_name = True
         alias_generator = convert_field_to_camel_case
-
-
-def set_created_at(_):
-    return datetime.utcnow()
-
-
-def set_last_login(_, values):
-    return values.get("created_at")

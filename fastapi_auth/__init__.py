@@ -1,17 +1,20 @@
-from .main import (
-    FastAPIAuth,
-    FastAPIAuthApp,
+from .dependencies import (
     admin_required,
     get_authenticated_user,
     get_user,
+    role_required,
 )
-from .user import User
+from .main import FastAPIAuth, FastAPIAuthApp
+from .models.user import User, UserDB, UserUpdate
 
 __all__ = [
     "FastAPIAuth",
     "FastAPIAuthApp",
-    "get_user",
-    "get_authenticated_user",
     "admin_required",
+    "get_authenticated_user",
+    "get_user",
+    "role_required",
     "User",
+    "UserDB",
+    "UserUpdate",
 ]

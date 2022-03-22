@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 
+from fastapi_auth.types import UID
 
-class Status(BaseModel):
+
+class VerificationStatusResponse(BaseModel):
     email: str
     verified: bool
+
+
+class VerificationPayload(BaseModel):
+    id: UID
+    email: str
+    type: str

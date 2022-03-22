@@ -1,110 +1,107 @@
 import asyncio
-from typing import Callable, Iterable, Optional, Type
+import hashlib
+import os
+from typing import Callable, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
-from fastapi_auth.backend.abc import AbstractJWTAuthentication, AbstractOAuthProvider
-from fastapi_auth.models.auth import BaseTokenPayload
-from fastapi_auth.models.oauth import OAuthCreate
-from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.oauth import resolve_username
-from fastapi_auth.utils.string import create_random_state
+from fastapi_auth.backend.abc.transport import AbstractTransport
+from fastapi_auth.errors import (
+    EmailAlreadyExistsError,
+    OAuthLoginOnlyError,
+    TokenDecodingError,
+    UserNotActiveError,
+    WrongTokenTypeError,
+)
+from fastapi_auth.jwt import JWT
+from fastapi_auth.services.oauth import OAuthService
 
 
 def get_oauth_router(
-    repo: AuthRepo,
-    auth_backend: AbstractJWTAuthentication,
-    oauth_providers: Iterable[AbstractOAuthProvider],
-    user_token_payload_model: Type[BaseTokenPayload],
-    user_create_hook: Optional[Callable[[dict], None]],
-    origin: str,
-    create_redirect_path_prefix: str,
-    error_redirect_path: str,
+    service: OAuthService,
+    jwt: JWT,
+    transport: AbstractTransport,
+    message_path: str,
+    on_create_action: Optional[Callable],
 ):
-    def create_redirect_uri(provider_name: str) -> str:
-        return f"{origin}{create_redirect_path_prefix}/{provider_name}/callback"
-
-    def get_provider(provider_name: str) -> AbstractOAuthProvider:
-        for provider in oauth_providers:
-            if provider.name == provider_name:
-                return provider
-
-        raise HTTPException(404)
-
     router = APIRouter()
 
     @router.get("/{provider_name}", name="oauth:login")
     async def oauth_login(provider_name: str, request: Request):
-        provider = get_provider(provider_name)
+        provider = service.get_provider(provider_name)
+        if provider is None:  # pragma: no cover
+            return RedirectResponse(f"{message_path}?message=provider_not_found")
 
-        state = create_random_state()
+        state = hashlib.sha256(os.urandom(1024)).hexdigest()
         request.session["state"] = state
 
-        redirect_uri = create_redirect_uri(provider_name)
+        redirect_uri = service.create_redirect_uri(provider_name)
         oauth_uri = provider.create_oauth_uri(redirect_uri, state)
 
         return RedirectResponse(oauth_uri)
 
     @router.get("/{provider_name}/callback", name="oauth:callback")
     async def oauth_callback(provider_name: str, request: Request):
-        provider = get_provider(provider_name)
+        provider = service.get_provider(provider_name)
+        if provider is None:
+            return RedirectResponse(f"{message_path}?message=provider_not_found")
 
         request_state = request.query_params.get("state")
         session_state = request.session.get("state")
 
         if request_state != session_state:
-            return RedirectResponse(f"{error_redirect_path}?message=invalid_state")
+            return RedirectResponse(f"{message_path}?message=invalid_state")
 
-        redirect_uri = create_redirect_uri(provider_name)
+        redirect_uri = service.create_redirect_uri(provider_name)
         code = request.query_params.get("code")
         sid, email = await provider.get_user_data(redirect_uri, code)
 
+        add_token = request.cookies.get("add_oauth_account")
+        if add_token is not None:
+            try:
+                await service.add_oauth_account(add_token, provider_name, sid)
+                response = RedirectResponse(
+                    f"/{message_path}?message=oauth_account_was_added_successfully"
+                )
+            except WrongTokenTypeError:
+                response = RedirectResponse(f"/{message_path}?message=wrong_token_type")
+            except TokenDecodingError:
+                response = RedirectResponse(f"/{message_path}?message=wrong_token")
+
+            response.delete_cookie("add_oauth_account")
+            return response
+
         if email is None:
-            return RedirectResponse(f"{error_redirect_path}?message=no_email")
+            return RedirectResponse(f"{message_path}?message=no_email")
 
-        existing_social_user = await repo.get_by_social(provider_name, sid)
-        if existing_social_user is not None:
-            item = existing_social_user
-            if not item.get("active"):
-                return RedirectResponse(f"{error_redirect_path}?message=ban")
-        else:
-            existing_email = await repo.get_by_email(email)
-            if existing_email is not None:
-                return RedirectResponse(
-                    f"{error_redirect_path}?message=email_already_exists"
-                )
+        try:
+            user_db = await service.get_user(provider, sid)
+            if user_db is None:
+                user_db = await service.create_user(provider, sid, email)
 
-            if provider.is_login_only():
-                return RedirectResponse(
-                    f"{error_redirect_path}?message=login_only",
-                )
+                if on_create_action is not None:  # pragma: no cover
+                    if asyncio.iscoroutinefunction(on_create_action):
+                        await on_create_action(request, user_db)
+                    else:
+                        on_create_action(request, user_db)
 
-            username = await resolve_username(repo, email)
+            access_token, refresh_token = jwt.create_tokens(user_db.payload())
+            response = RedirectResponse("/")
+            transport.login(
+                response,
+                access_token,
+                refresh_token,
+                jwt.access_token_expiration,
+                jwt.refresh_token_expiration,
+            )
 
-            user = OAuthCreate(
-                **{
-                    "email": email,
-                    "username": username,
-                    "provider": provider_name,
-                    "sid": sid,
-                }
-            ).dict()
-            id = await repo.create(user)
-            user.update({"id": id})
-            if user_create_hook is not None:
-                if asyncio.iscoroutinefunction(user_create_hook):
-                    await user_create_hook(user)  # type: ignore
-                else:
-                    user_create_hook(user)
-            item = user
-
-        payload = user_token_payload_model(**item).dict()
-        access_token, refresh_token = auth_backend.create_tokens(payload)
-        response = RedirectResponse("/")
-        auth_backend.set_login_response(response, access_token, refresh_token)
-
-        asyncio.create_task(repo.update_last_login(item.get("id")))  # type: ignore
+        except UserNotActiveError:
+            return RedirectResponse(f"{message_path}?message=ban")
+        except EmailAlreadyExistsError:
+            return RedirectResponse(f"{message_path}?message=email_already_exists")
+        except OAuthLoginOnlyError:
+            return RedirectResponse(f"{message_path}?message=login_only")
 
         return response
 

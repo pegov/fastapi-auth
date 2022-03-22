@@ -1,150 +1,135 @@
 import asyncio
-from typing import Callable, Optional, Type
+from typing import Callable, Optional
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import ORJSONResponse
 
-from fastapi_auth.backend.abc import (
-    AbstractCaptchaBackend,
-    AbstractEmailBackend,
-    AbstractJWTAuthentication,
+from fastapi_auth.backend.abc.transport import AbstractTransport
+from fastapi_auth.dependencies import get_authenticated_user
+from fastapi_auth.detail import Detail
+from fastapi_auth.errors import (
+    AuthorizationError,
+    EmailAlreadyExistsError,
+    InvalidCaptchaError,
+    InvalidPasswordError,
+    TimeoutError,
+    TokenDecodingError,
+    UsernameAlreadyExistsError,
+    UserNotActiveError,
+    UserNotFoundError,
 )
-from fastapi_auth.detail import HTTPExceptionDetail
+from fastapi_auth.jwt import JWT
 from fastapi_auth.models.auth import (
-    BaseTokenPayload,
-    Create,
-    Login,
-    Register,
-    TokenPayload,
-    TokenRefreshResponse,
+    LoginRequest,
+    RefreshAccessTokenResponse,
+    RegisterRequest,
+    UserPayloadResponse,
 )
-from fastapi_auth.repo import AuthRepo
-from fastapi_auth.services.verify import request_verification
-from fastapi_auth.user import User
-from fastapi_auth.utils.password import get_password_hash, verify_password
+from fastapi_auth.models.user import User
+from fastapi_auth.services.auth import AuthService
 
 
 def get_auth_router(
-    repo: AuthRepo,
-    auth_backend: AbstractJWTAuthentication,
-    captcha_backend: Optional[AbstractCaptchaBackend],
-    email_backend: AbstractEmailBackend,
-    get_authenticated_user: Callable,
-    user_token_payload_model: Type[BaseTokenPayload],
-    user_create_hook: Optional[Callable[[dict], None]],
-    debug: bool,
-    enable_captcha: bool,
+    service: AuthService,
+    jwt: JWT,
+    transport: AbstractTransport,
+    on_create_action: Optional[Callable],
 ) -> APIRouter:
     router = APIRouter()
 
     @router.post("/register", name="auth:register")
     async def auth_register(
         *,
-        user_in: Register,
+        data_in: RegisterRequest,
+        request: Request,
         response: Response,
     ):
-        if (
-            not debug
-            and enable_captcha
-            and not await captcha_backend.validate_captcha(user_in.captcha)
-        ):
-            raise HTTPException(400, detail=HTTPExceptionDetail.CAPTCHA_IS_NOT_VALID)
-
-        existing_email = await repo.get_by_email(user_in.email)
-        if existing_email is not None:
-            raise HTTPException(400, detail=HTTPExceptionDetail.EMAIL_ALREADY_EXISTS)
-
-        existing_username = await repo.get_by_username(user_in.username)
-        if existing_username is not None:
-            raise HTTPException(400, detail=HTTPExceptionDetail.USERNAME_ALREADY_EXISTS)
-
-        password_hash = get_password_hash(user_in.password1)
-        user_obj = Create(**user_in.dict(), password=password_hash).dict()
-        id = await repo.create(user_obj)
-        user_obj.update({"id": id})
-
-        if user_create_hook is not None:
-            if asyncio.iscoroutinefunction(user_create_hook):
-                await user_create_hook(user_obj)  # type: ignore
-            else:
-                user_create_hook(user_obj)
-
-        user_token_payload = user_token_payload_model(**user_obj)
-
         try:
-            await request_verification(repo, email_backend, user_in.email)
-        except Exception:
-            # TODO
-            pass
+            user_db = await service.register(data_in, request.client.host)
 
-        access_token, refresh_token = auth_backend.create_tokens(
-            user_token_payload.dict()
-        )
-        auth_backend.set_login_response(response, access_token, refresh_token)
+            if on_create_action is not None:  # pragma: no cover
+                if asyncio.iscoroutinefunction(on_create_action):
+                    await on_create_action(request, user_db)
+                else:
+                    on_create_action(request, user_db)
+
+            access_token, refresh_token = jwt.create_tokens(user_db.payload())
+            return transport.login(
+                response,
+                access_token,
+                refresh_token,
+                jwt.access_token_expiration,
+                jwt.refresh_token_expiration,
+            )
+
+        except InvalidCaptchaError:  # pragma: no cover
+            raise HTTPException(400, detail=Detail.INVALID_CAPTCHA)
+        except UsernameAlreadyExistsError:  # pragma: no cover
+            raise HTTPException(400, detail=Detail.EMAIL_ALREADY_EXISTS)
+        except EmailAlreadyExistsError:  # pragma: no cover
+            raise HTTPException(400, detail=Detail.USERNAME_ALREADY_EXISTS)
 
     @router.post("/login", name="auth:login")
     async def auth_login(
-        *,
         request: Request,
-        user_in: Login,
+        data_in: LoginRequest,
         response: Response,
     ):
-        if await repo.ip_has_timeout(request.client.host):
+        try:
+            user_db = await service.login(
+                data_in,
+                request.client.host,
+            )
+            access_token, refresh_token = jwt.create_tokens(user_db.payload())
+            return transport.login(
+                response,
+                access_token,
+                refresh_token,
+                jwt.access_token_expiration,
+                jwt.refresh_token_expiration,
+            )
+
+        except UserNotActiveError:  # pragma: no cover
+            raise HTTPException(400, detail=Detail.USER_NOT_ACTIVE)
+        except InvalidPasswordError:  # pragma: no cover
+            raise HTTPException(401)
+        except UserNotFoundError:  # pragma: no cover
+            raise HTTPException(404)
+        except TimeoutError:  # pragma: no cover
             raise HTTPException(429)
 
-        user = await repo.get_by_login(user_in.login)
-        if user is None:
-            raise HTTPException(404)
-
-        if not user.get("active"):
-            raise HTTPException(401)
-
-        password_hash = user.get("password")
-        if not verify_password(user_in.password, password_hash):  # type: ignore
-            raise HTTPException(401)
-
-        user_token_payload = TokenPayload(**user)
-        access_token, refresh_token = auth_backend.create_tokens(
-            user_token_payload.dict()
-        )
-        auth_backend.set_login_response(response, access_token, refresh_token)
-
-        asyncio.create_task(repo.update_last_login(user.get("id")))  # type: ignore
-
     @router.post("/logout", name="auth:logout")
-    async def auth_logout(
-        *,
-        response: Response,
-    ):
-        auth_backend.set_logout_response(response)
+    async def auth_logout(response: Response):
+        transport.logout(response)
 
-    @router.post("/token", response_model=TokenPayload, name="auth:token")
-    async def token(
-        *,
-        user: User = Depends(get_authenticated_user),
-    ):
-        return user.data
+    @router.post(
+        "/token",
+        name="auth:token",
+        response_model=UserPayloadResponse,
+    )
+    async def auth_token(user: User = Depends(get_authenticated_user)):
+        return user
 
     @router.post(
         "/token/refresh",
-        response_model=TokenRefreshResponse,
         name="auth:refresh_access_token",
+        response_model=RefreshAccessTokenResponse,
     )
-    async def auth_refresh_access_token(
-        *,
-        request: Request,
-    ):
-        refresh_token = auth_backend.get_refresh_token_from_request(request)
-        if refresh_token is None:
-            raise HTTPException(401)
+    async def auth_refresh_access_token(request: Request):
+        try:
+            refresh_token = transport.get_refresh_token(request)
+            payload = jwt.decode_token(refresh_token)
+            user = User(**payload)
+            user_db = await service.authorize(user)
+            access_token = jwt.create_access_token(user_db.payload())
+            response = ORJSONResponse({"access_token": access_token})
+            transport.refresh_access_token(
+                response, access_token, jwt.access_token_expiration
+            )
+            return response
 
-        access_token = await auth_backend.refresh_access_token(refresh_token)
-        if access_token is None:
+        except (TokenDecodingError, AuthorizationError):  # pragma: no cover
             raise HTTPException(401)
-
-        response = ORJSONResponse({"access_token": access_token})
-        auth_backend.set_access_cookie(response, access_token)
-        return response
 
     return router

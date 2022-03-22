@@ -1,11 +1,10 @@
-from fastapi_auth.backend.abc import AbstractUserValidator
-from fastapi_auth.backend.validator import StandardUserValidator
+from fastapi_auth.backend.abc.validator import AbstractValidator
+from fastapi_auth.backend.validator.default import DefaultUserValidator
 
 
-class Validator:
-    _validator: AbstractUserValidator = StandardUserValidator()
+class GlobalValidator:
+    _validator: AbstractValidator = DefaultUserValidator()
 
-    # NOTE: setup again.
     @classmethod
-    def set(cls, validator: AbstractUserValidator) -> None:
-        cls._validator = validator  # pragma: no cover
+    def set(cls, validator: AbstractValidator) -> None:  # pragma: no cover
+        cls._validator = validator

@@ -1,1 +1,0 @@
-from .recaptcha import RecaptchaBackend

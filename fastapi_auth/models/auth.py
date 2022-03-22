@@ -1,13 +1,12 @@
-from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, validator
 
-from fastapi_auth.models.common import set_created_at, set_last_login
-from fastapi_auth.validator import Validator
+from fastapi_auth.types import UID
+from fastapi_auth.validator import GlobalValidator
 
 
-class Register(BaseModel):
+class RegisterRequest(BaseModel):
     email: EmailStr
     username: str
     password1: str
@@ -15,46 +14,23 @@ class Register(BaseModel):
     captcha: Optional[str] = None
 
     _check_username = validator("username", allow_reuse=True)(
-        Validator._validator.validate_username
+        GlobalValidator._validator.validate_username
     )
     _check_password = validator("password2", allow_reuse=True)(
-        Validator._validator.validate_password
+        GlobalValidator._validator.validate_password
     )
 
 
-class Login(BaseModel):
-    login: Union[EmailStr, str]
+class LoginRequest(BaseModel):
+    login: str
     password: str
 
 
-class BaseTokenPayload(BaseModel):
-    id: int
-
-
-class TokenPayload(BaseTokenPayload):
-    id: int
-    username: str
-    roles: List[str] = []
-
-
-class Create(BaseModel):
-    email: str
-    username: str
-    password: str
-    active: bool = True
-    verified: bool = False
-    roles: List[str] = []
-
-    created_at: Optional[datetime] = None
-    last_login: Optional[datetime] = None
-
-    _created_at = validator("created_at", pre=True, always=True, allow_reuse=True)(
-        set_created_at
-    )
-    _last_login = validator("last_login", pre=True, always=True, allow_reuse=True)(
-        set_last_login
-    )
-
-
-class TokenRefreshResponse(BaseModel):
+class RefreshAccessTokenResponse(BaseModel):
     access_token: str
+
+
+class UserPayloadResponse(BaseModel):
+    id: UID
+    username: str
+    roles: List[str]
