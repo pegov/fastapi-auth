@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-from typing import List
 
 from fastapi_auth.models.admin import MassLogoutStatusResponse
-from fastapi_auth.models.user import UserUpdate
 from fastapi_auth.repo import Repo
 from fastapi_auth.types import UID
 
@@ -22,9 +20,6 @@ class AdminService:
 
     async def unkick(self, id: UID) -> None:
         await self._repo.unkick(id)
-
-    async def set_roles(self, id: UID, roles: List[str]) -> None:
-        await self._repo.update(id, UserUpdate(roles=roles).to_update_dict())
 
     async def get_mass_logout_status(self) -> MassLogoutStatusResponse:
         ts = await self._repo.get_mass_logout_ts()

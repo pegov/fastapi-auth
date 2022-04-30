@@ -17,7 +17,7 @@ from fastapi_auth.models.password import (
     PasswordChangeRequest,
     PasswordForgotRequest,
     PasswordResetRequest,
-    PasswordResetToken,
+    PasswordResetTokenPayload,
     PasswordSetRequest,
     PasswordStatusResponse,
 )
@@ -112,7 +112,7 @@ class PasswordService:
         data_in: PasswordResetRequest,
     ) -> UID:
         payload = self._jwt.decode_token(data_in.token)
-        obj = PasswordResetToken(**payload)
+        obj = PasswordResetTokenPayload(**payload)
 
         if obj.type != self._tp.reset_password_token_type:
             raise WrongTokenTypeError

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from fastapi_auth.dependencies import admin_required
-from fastapi_auth.models.admin import MassLogoutStatusResponse, SetRolesRequest
+from fastapi_auth.models.admin import MassLogoutStatusResponse
 from fastapi_auth.services.admin import AdminService
 
 
@@ -59,12 +59,5 @@ def get_admin_router(
     )
     async def admin_unkick(id: int):
         await service.unkick(id)
-
-    @router.put(
-        "/{id}/roles",
-        name="admin:set_roles",
-    )
-    async def admin_set_roles(id: int, data_in: SetRolesRequest):
-        await service.set_roles(id, data_in.roles)
 
     return router

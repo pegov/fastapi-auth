@@ -18,9 +18,9 @@ from fastapi_auth.errors import (
 )
 from fastapi_auth.jwt import JWT, TokenParams
 from fastapi_auth.models.auth import LoginRequest, RegisterRequest
-from fastapi_auth.models.user import User, UserCreate, UserDB, UserUpdate
+from fastapi_auth.models.user import UserCreate, UserDB, UserUpdate
 from fastapi_auth.repo import Repo
-from fastapi_auth.services.verify import request_verification
+from fastapi_auth.services.email import request_verification
 
 
 class AuthService:
@@ -123,11 +123,3 @@ class AuthService:
         )
 
         return user
-
-    async def authorize(self, user: User) -> UserDB:
-        await self._authorization.authorize(self._repo, user, "refresh")
-        user_db = await self._repo.get(user.id)
-        if not user_db.active:
-            raise UserNotActiveError
-
-        return user_db

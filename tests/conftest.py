@@ -65,13 +65,7 @@ def app(
         mock_captcha_client,
         validator=mock_validator,
     )
-
-    app.include_router(auth_app.get_auth_router(), prefix="/api/users")
-    app.include_router(auth_app.get_password_router(), prefix="/api/users")
-    app.include_router(auth_app.get_me_router(), prefix="/api/users")
-    app.include_router(auth_app.get_verify_router(), prefix="/api/users")
-    app.include_router(auth_app.get_admin_router(), prefix="/api/users")
-    app.include_router(auth_app.get_oauth_router(), prefix="/api/users")
+    auth_app.include_routers("/api/users")
 
     yield app
 

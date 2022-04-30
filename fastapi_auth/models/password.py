@@ -33,6 +33,6 @@ class PasswordResetRequest(PasswordSetRequest):
     token: str
 
 
-class PasswordResetToken(BaseModel):
+class PasswordResetTokenPayload(BaseModel):
     id: UID
     type: str

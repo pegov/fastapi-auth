@@ -14,7 +14,7 @@ from fastapi_auth.errors import (
     UsernameAlreadyExistsError,
     WrongTokenTypeError,
 )
-from fastapi_auth.models.me import ChangeEmailRequest, ChangeUsernameRequest, MeResponse
+from fastapi_auth.models.me import ChangeUsernameRequest, MeResponse
 from fastapi_auth.models.user import User
 from fastapi_auth.services.me import MeService
 
@@ -58,35 +58,6 @@ def get_me_router(
             raise HTTPException(400, detail=Detail.SAME_USERNAME)
         except UsernameAlreadyExistsError:  # pragma: no cover
             raise HTTPException(400, detail=Detail.USERNAME_ALREADY_EXISTS)
-
-    @router.post("/me/change_email/request", name="me:request_email_change")
-    async def me_request_email_change(
-        data_in: ChangeEmailRequest,
-        user: User = Depends(get_authenticated_user),
-    ):
-        try:
-            await service.request_email_change(data_in, user)
-        except TimeoutError:  # pragma: no cover
-            raise HTTPException(429)
-
-    @router.post("/me/change_email/old/{token}", name="me:check_old_email")
-    async def me_check_old_email(token: str):
-        try:
-            await service.check_old_email(token)
-
-        except WrongTokenTypeError:  # pragma: no cover
-            raise HTTPException(400, detail=Detail.WRONG_TOKEN_TYPE)
-        except TokenAlreadyUsedError:  # pragma: no cover
-            raise HTTPException(400, detail=Detail.TOKEN_ALREADY_USED)
-
-    @router.post("/me/change_email/new/{token}", name="me:check_new_email")
-    async def me_check_new_email(token: str):
-        try:
-            await service.check_new_email(token)
-        except WrongTokenTypeError:  # pragma: no cover
-            raise HTTPException(400, detail=Detail.WRONG_TOKEN_TYPE)
-        except TokenAlreadyUsedError:  # pragma: no cover
-            raise HTTPException(400, detail=Detail.TOKEN_ALREADY_USED)
 
     @router.post("/me/oauth/add_account/{provider_name}", name="me:add_oauth")
     async def me_add_oauth(

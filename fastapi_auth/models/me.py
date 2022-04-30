@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, validator
 
 from fastapi_auth.models.user import OAuth
 from fastapi_auth.types import UID
@@ -8,6 +8,7 @@ from fastapi_auth.validator import GlobalValidator
 
 
 class MeResponse(BaseModel):
+    id: UID
     email: str
     username: str
     roles: List[str]
@@ -23,14 +24,3 @@ class ChangeUsernameRequest(BaseModel):
     _check_username = validator("username", allow_reuse=True)(
         GlobalValidator._validator.validate_username
     )
-
-
-class ChangeEmailRequest(BaseModel):
-    email: EmailStr
-
-
-class ChangeEmailToken(BaseModel):
-    id: UID
-    email: str
-
-    type: str

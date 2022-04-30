@@ -1,8 +1,7 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr, validator
 
-from fastapi_auth.types import UID
 from fastapi_auth.validator import GlobalValidator
 
 
@@ -24,13 +23,3 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     login: str
     password: str
-
-
-class RefreshAccessTokenResponse(BaseModel):
-    access_token: str
-
-
-class UserPayloadResponse(BaseModel):
-    id: UID
-    username: str
-    roles: List[str]

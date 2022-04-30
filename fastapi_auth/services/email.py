@@ -4,12 +4,13 @@ from fastapi_auth.backend.abc.email import AbstractEmailClient
 from fastapi_auth.errors import (
     EmailAlreadyVerifiedError,
     EmailMismatchError,
+    SameEmailError,
     TimeoutError,
     WrongTokenTypeError,
 )
 from fastapi_auth.jwt import JWT, TokenParams
+from fastapi_auth.models.email import ChangeEmailRequest, EmailActionTokenPayload
 from fastapi_auth.models.user import User, UserUpdate
-from fastapi_auth.models.verify import VerificationPayload, VerificationStatusResponse
 from fastapi_auth.repo import Repo
 from fastapi_auth.types import UID
 
@@ -33,7 +34,7 @@ async def request_verification(
     await email_client.request_verification(email, token)
 
 
-class VerifyService:
+class EmailService:
     def __init__(
         self,
         repo: Repo,
@@ -46,11 +47,7 @@ class VerifyService:
         self._tp = token_params
         self._email_client = email_client
 
-    async def get_status(self, user: User) -> VerificationStatusResponse:
-        item = await self._repo.get(user.id)
-        return VerificationStatusResponse(**item.dict())
-
-    async def request(self, user: User) -> None:
+    async def request_verification(self, user: User) -> None:
         item = await self._repo.get(user.id)
 
         if item.verified:
@@ -75,7 +72,7 @@ class VerifyService:
 
     async def verify(self, token: str) -> None:
         payload = self._jwt.decode_token(token)
-        data = VerificationPayload(**payload)
+        data = EmailActionTokenPayload(**payload)
 
         if data.type != self._tp.verify_email_token_type:
             raise WrongTokenTypeError
@@ -92,3 +89,60 @@ class VerifyService:
 
         update_obj = UserUpdate(verified=True)
         await self._repo.update(user.id, update_obj.to_update_dict())
+
+    async def request_email_change(
+        self, data_in: ChangeEmailRequest, user: User
+    ) -> None:
+        item = await self._repo.get(user.id)
+
+        if data_in.email == item.email:
+            raise SameEmailError
+
+        if await self._repo.rate_limit_reached(
+            "request_email_change",
+            2,
+            60 * 30,
+            60 * 60,
+            user.id,
+        ):
+            raise TimeoutError
+
+        payload = {
+            "id": str(user.id) if isinstance(id, UUID) else user.id,
+            "email": data_in.email,
+        }
+        token = self._jwt.create_token(
+            self._tp.check_old_email_token_type,
+            payload,
+            self._tp.change_email_token_expiration,
+        )
+        await self._email_client.check_old_email(item.email, token)
+
+    async def verify_old(self, token: str) -> None:
+        payload = self._jwt.decode_token(token)
+        obj = EmailActionTokenPayload(**payload)
+
+        if obj.type != self._tp.check_old_email_token_type:  # pragma: no cover
+            raise WrongTokenTypeError
+
+        await self._repo.use_token(token, self._tp.change_email_token_expiration)
+
+        token = self._jwt.create_token(
+            self._tp.check_new_email_token_type,
+            payload,
+            self._tp.change_email_token_expiration,
+        )
+
+        await self._email_client.check_new_email(obj.email, token)
+
+    async def verify_new(self, token: str) -> None:
+        payload = self._jwt.decode_token(token)
+        obj = EmailActionTokenPayload(**payload)
+
+        if obj.type != self._tp.check_new_email_token_type:  # pragma: no cover
+            raise WrongTokenTypeError
+
+        await self._repo.use_token(token, self._tp.change_email_token_expiration)
+
+        update_obj = UserUpdate(email=obj.email)
+        await self._repo.update(obj.id, update_obj.to_update_dict())

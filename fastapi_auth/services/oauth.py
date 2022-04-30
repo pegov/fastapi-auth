@@ -12,7 +12,7 @@ from fastapi_auth.errors import (
     WrongTokenTypeError,
 )
 from fastapi_auth.jwt import JWT, TokenParams
-from fastapi_auth.models.oauth import OAuthAccountActionToken
+from fastapi_auth.models.oauth import OAuthAccountActionTokenPayload
 from fastapi_auth.models.user import OAuth, UserCreate, UserDB, UserUpdate
 from fastapi_auth.repo import Repo
 
@@ -121,7 +121,7 @@ class OAuthService:
 
     async def add_oauth_account(self, token: str, provider: str, sid: str) -> None:
         payload = self._jwt.decode_token(token)
-        obj = OAuthAccountActionToken(**payload)
+        obj = OAuthAccountActionTokenPayload(**payload)
 
         if obj.type != self._tp.add_oauth_account_token_type:
             raise WrongTokenTypeError

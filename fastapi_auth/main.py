@@ -19,17 +19,19 @@ from fastapi_auth.repo import Repo
 from fastapi_auth.routers import (
     get_admin_router,
     get_auth_router,
+    get_email_router,
     get_me_router,
     get_oauth_router,
     get_password_router,
-    get_verify_router,
 )
+from fastapi_auth.routers.token import get_token_router
 from fastapi_auth.services.admin import AdminService
 from fastapi_auth.services.auth import AuthService
+from fastapi_auth.services.email import EmailService
 from fastapi_auth.services.me import MeService
 from fastapi_auth.services.oauth import OAuthService
 from fastapi_auth.services.password import PasswordService
-from fastapi_auth.services.verify import VerifyService
+from fastapi_auth.services.token import TokenService
 from fastapi_auth.validator import GlobalValidator
 
 
@@ -115,8 +117,8 @@ class FastAPIAuthApp(FastAPIAuth):
         oauth_message_path: str = "/oauth",
         origin: str = "http://127.0.0.1",
         debug: bool = False,
-        # tokens
     ) -> None:
+        self._app = app
         self.repo = Repo(
             db,
             cache,
@@ -152,6 +154,17 @@ class FastAPIAuthApp(FastAPIAuth):
         self._oauth_message_path = oauth_message_path
 
         app.state._fastapi_auth = self
+
+    def include_routers(self, api_prefix: str) -> None:
+        self._app.include_router(self.get_auth_router(), prefix=api_prefix)
+        self._app.include_router(self.get_token_router(), prefix=api_prefix)
+        self._app.include_router(self.get_password_router(), prefix=api_prefix)
+        self._app.include_router(self.get_admin_router(), prefix=api_prefix)
+        self._app.include_router(self.get_me_router(), prefix=api_prefix)
+        self._app.include_router(self.get_email_router(), prefix=api_prefix)
+        self._app.include_router(
+            self.get_oauth_router(), prefix=self._oauth_callback_prefix
+        )
 
     def get_auth_router(self) -> APIRouter:
         service = AuthService(
@@ -217,11 +230,19 @@ class FastAPIAuthApp(FastAPIAuth):
             self._debug,
         )
 
-    def get_verify_router(self) -> APIRouter:
-        service = VerifyService(
+    def get_email_router(self) -> APIRouter:
+        service = EmailService(
             repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             email_client=self._email_client,
         )
-        return get_verify_router(service)
+        return get_email_router(service)
+
+    def get_token_router(self) -> APIRouter:
+        service = TokenService(self.repo, self._authorization)
+        return get_token_router(
+            service,
+            self._jwt,
+            self._transport,
+        )

@@ -50,13 +50,13 @@ class MockJWTBackend(AbstractJWTBackend):
                 "id": 2,
                 "type": TokenParams.reset_password_token_type + "wrong",
             }
-        elif token == "check_old_email":
+        elif token == "verify_old_email":
             return {
                 "id": 2,
                 "email": "newemail@gmail.com",
                 "type": TokenParams.check_old_email_token_type,
             }
-        elif token == "check_new_email":
+        elif token == "verify_new_email":
             return {
                 "id": 2,
                 "email": "newemail@gmail.com",

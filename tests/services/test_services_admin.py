@@ -27,10 +27,6 @@ async def test_unkick(mock_service: AdminService):
     await mock_service.unkick(1)
 
 
-async def test_set_roles(mock_service: AdminService):
-    await mock_service.set_roles(1, ["role"])
-
-
 async def test_get_mass_logout_status_not_active(mock_service: AdminService):
     status = await mock_service.get_mass_logout_status()
     assert status.active is False

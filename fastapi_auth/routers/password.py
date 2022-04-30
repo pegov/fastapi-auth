@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 
 from fastapi_auth.dependencies import get_authenticated_user
@@ -11,6 +11,7 @@ from fastapi_auth.errors import (
     TimeoutError,
     TokenAlreadyUsedError,
     UserNotFoundError,
+    WrongTokenTypeError,
 )
 from fastapi_auth.models.password import (
     PasswordChangeRequest,
@@ -82,6 +83,8 @@ def get_password_router(service: PasswordService):
     ):
         try:
             await service.reset(data_in)
+        except WrongTokenTypeError:
+            raise HTTPException(400, detail=Detail.WRONG_TOKEN_TYPE)
         except TokenAlreadyUsedError:  # pragma: no cover
             raise HTTPException(400, detail=Detail.TOKEN_ALREADY_USED)
 

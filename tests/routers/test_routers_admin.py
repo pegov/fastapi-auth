@@ -82,14 +82,3 @@ async def test_unkick(
     res = await test_client.post(url)
 
     assert res.status_code == 200
-
-
-async def test_set_roles(
-    app: FastAPI,
-    test_client: AsyncClient,
-    mock_admin: User,
-):
-    url = app.url_path_for("admin:set_roles", id="2")
-    res = await test_client.put(url, json={"roles": ["role"]})
-
-    assert res.status_code == 200
