@@ -16,7 +16,7 @@ def get_admin_router(
         response_model=MassLogoutStatusResponse,
     )
     async def admin_get_mass_logout_status():
-        await service.get_mass_logout_status()
+        return await service.get_mass_logout_status()
 
     @router.post(
         "/mass_logout",
