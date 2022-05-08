@@ -5,6 +5,7 @@ from fastapi_auth.detail import Detail
 from fastapi_auth.errors import (
     EmailAlreadyVerifiedError,
     EmailMismatchError,
+    SameEmailError,
     TokenAlreadyUsedError,
     TokenDecodingError,
     UserNotFoundError,
@@ -28,6 +29,8 @@ def get_email_router(service: EmailService) -> APIRouter:
             await service.request_verification(user)
         except EmailAlreadyVerifiedError:  # pragma: no cover
             raise HTTPException(400, detail=Detail.EMAIL_ALREADY_VERIFIED)
+        except TimeoutError:
+            raise HTTPException(429)
 
     @router.post("/verify/{token}", name="email:verify")
     async def email_verify(*, token: str):
@@ -52,6 +55,8 @@ def get_email_router(service: EmailService) -> APIRouter:
     ):
         try:
             await service.request_email_change(data_in, user)
+        except SameEmailError:
+            raise HTTPException(400, detail=Detail.SAME_EMAIL)
         except TimeoutError:  # pragma: no cover
             raise HTTPException(429)
 

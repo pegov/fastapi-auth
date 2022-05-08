@@ -2,6 +2,7 @@ class Detail:
     INVALID_CAPTCHA = "invalid captcha"
     EMAIL_ALREADY_EXISTS = "email already exists"
     USERNAME_ALREADY_EXISTS = "username already exists"
+    SAME_EMAIL = "same email"
     SAME_USERNAME = "same username"
     PASSWORD_ALREADY_EXISTS = "password already exists"
     PASSWORD_NOT_SET = "password not set"
