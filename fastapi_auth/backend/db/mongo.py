@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, Type
 
 from motor.motor_asyncio import (
@@ -25,6 +26,8 @@ class MongoClient(AbstractDatabaseClient):
             self.set_client(client)
 
         self._db_model = db_model
+
+        self._lock = asyncio.Lock()
 
     def set_client(self, client: AsyncIOMotorClient) -> None:
         self._client = client
@@ -66,11 +69,10 @@ class MongoClient(AbstractDatabaseClient):
         return await self._get({"oauth.provider": provider, "oauth.sid": sid})
 
     async def create(self, obj: dict) -> UID:
-        async with await self._client.start_session() as session:
-            async with session.start_transaction():
-                id = await self._increment_id()
-                obj.update({"id": id})
-                await self._users.insert_one(obj)
+        async with self._lock:
+            id = await self._increment_id()
+            obj.update({"id": id})
+            await self._users.insert_one(obj)
         return id
 
     async def update(self, id: UID, obj: dict) -> bool:
