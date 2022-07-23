@@ -51,6 +51,10 @@ class UserNotFoundError(FastAPIAuthException):
     pass
 
 
+class RoleNotFoundError(FastAPIAuthException):
+    pass
+
+
 # rate limit
 class TimeoutError(FastAPIAuthException):
     pass

@@ -1,8 +1,6 @@
 from pydantic import BaseModel
 
-from fastapi_auth.types import UID
-
 
 class OAuthAccountActionTokenPayload(BaseModel):
-    id: UID
+    id: int
     type: str

@@ -2,11 +2,9 @@ from typing import List
 
 from pydantic import BaseModel
 
-from fastapi_auth.types import UID
-
 
 class TokenPayloadResponse(BaseModel):
-    id: UID
+    id: int
     username: str
     roles: List[str]
 

@@ -3,7 +3,6 @@ from typing import Optional
 from pydantic import BaseModel, validator
 
 from fastapi_auth.models.common import DefaultModel
-from fastapi_auth.types import UID
 from fastapi_auth.validator import GlobalValidator
 
 
@@ -34,5 +33,5 @@ class PasswordResetRequest(PasswordSetRequest):
 
 
 class PasswordResetTokenPayload(BaseModel):
-    id: UID
+    id: int
     type: str

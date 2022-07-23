@@ -1,7 +1,7 @@
 import asyncio
 from typing import Callable, Optional
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.exceptions import HTTPException
 
 from fastapi_auth.backend.abc.transport import AbstractTransport
@@ -15,15 +15,18 @@ from fastapi_auth.errors import (
     UserNotActiveError,
     UserNotFoundError,
 )
-from fastapi_auth.jwt import JWT
+from fastapi_auth.jwt import JWT, TokenParams
 from fastapi_auth.models.auth import LoginRequest, RegisterRequest
+from fastapi_auth.repo import Repo
 from fastapi_auth.services.auth import AuthService
 
 
 def get_auth_router(
+    get_repo: Callable,
     service: AuthService,
     jwt: JWT,
     transport: AbstractTransport,
+    tp: TokenParams,
     on_create_action: Optional[Callable],
 ) -> APIRouter:
     router = APIRouter()
@@ -34,9 +37,14 @@ def get_auth_router(
         data_in: RegisterRequest,
         request: Request,
         response: Response,
+        repo: Repo = Depends(get_repo),
     ):
         try:
-            user_db = await service.register(data_in, request.client.host)
+            user_db = await service.register(
+                repo,
+                data_in,
+                request.client.host,  # type: ignore
+            )
 
             if on_create_action is not None:  # pragma: no cover
                 if asyncio.iscoroutinefunction(on_create_action):
@@ -49,8 +57,8 @@ def get_auth_router(
                 response,
                 access_token,
                 refresh_token,
-                jwt.access_token_expiration,
-                jwt.refresh_token_expiration,
+                tp.access_token_expiration,
+                tp.refresh_token_expiration,
             )
 
         except InvalidCaptchaError:  # pragma: no cover
@@ -65,19 +73,21 @@ def get_auth_router(
         request: Request,
         data_in: LoginRequest,
         response: Response,
+        repo: Repo = Depends(get_repo),
     ):
         try:
             user_db = await service.login(
+                repo,
                 data_in,
-                request.client.host,
+                request.client.host,  # type: ignore
             )
             access_token, refresh_token = jwt.create_tokens(user_db.payload())
             return transport.login(
                 response,
                 access_token,
                 refresh_token,
-                jwt.access_token_expiration,
-                jwt.refresh_token_expiration,
+                tp.access_token_expiration,
+                tp.refresh_token_expiration,
             )
 
         except UserNotActiveError:  # pragma: no cover

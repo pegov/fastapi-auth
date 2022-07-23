@@ -6,6 +6,12 @@ from fastapi_auth.backend.abc.jwt import AbstractJWTBackend
 
 @dataclass
 class TokenParams:
+    access_token_expiration: int = 60 * 60 * 6
+    access_token_type = "access"
+
+    refresh_token_expiration: int = 60 * 60 * 24 * 30
+    refresh_token_type = "refresh"
+
     reset_password_token_type: str = "reset_password"
     reset_password_token_expiration: int = 60 * 60
     reset_password_rate_limit: int = 2
@@ -42,12 +48,10 @@ class JWT:
     def __init__(
         self,
         backend: AbstractJWTBackend,
-        access_token_expiration: int,
-        refresh_token_expiration: int,
+        tp: TokenParams,
     ):
         self._backend = backend
-        self.access_token_expiration = access_token_expiration
-        self.refresh_token_expiration = refresh_token_expiration
+        self._tp = tp
 
     def decode_token(self, token: str) -> dict:
         return self._backend.decode_token(token)
@@ -60,12 +64,12 @@ class JWT:
         payload: dict,
     ) -> str:
         return self._backend.create_token(
-            "access", payload, self.access_token_expiration
+            "access", payload, self._tp.access_token_expiration
         )
 
     def create_refresh_token(self, payload: dict) -> str:
         return self._backend.create_token(
-            "refresh", payload, self.refresh_token_expiration
+            "refresh", payload, self._tp.refresh_token_expiration
         )
 
     def create_tokens(self, payload: dict) -> Tuple[str, str]:

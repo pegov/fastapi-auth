@@ -1,11 +1,9 @@
-from typing import Callable, Iterable, Optional, Type
+from typing import Callable, Iterable, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from fastapi_auth.backend.abc.authorization import AbstractAuthorization
-from fastapi_auth.backend.abc.cache import AbstractCacheClient
 from fastapi_auth.backend.abc.captcha import AbstractCaptchaClient
-from fastapi_auth.backend.abc.db import AbstractDatabaseClient
 from fastapi_auth.backend.abc.email import AbstractEmailClient
 from fastapi_auth.backend.abc.jwt import AbstractJWTBackend
 from fastapi_auth.backend.abc.oauth import AbstractOAuthProvider
@@ -14,8 +12,7 @@ from fastapi_auth.backend.abc.transport import AbstractTransport
 from fastapi_auth.backend.abc.validator import AbstractValidator
 from fastapi_auth.errors import AuthorizationError, TokenDecodingError
 from fastapi_auth.jwt import JWT, TokenParams
-from fastapi_auth.models.user import Anonim, BaseUser, User
-from fastapi_auth.repo import Repo
+from fastapi_auth.models.user import User
 from fastapi_auth.routers import (
     get_admin_router,
     get_auth_router,
@@ -25,13 +22,11 @@ from fastapi_auth.routers import (
     get_password_router,
 )
 from fastapi_auth.routers.token import get_token_router
-from fastapi_auth.services.admin import AdminService
 from fastapi_auth.services.auth import AuthService
 from fastapi_auth.services.email import EmailService
 from fastapi_auth.services.me import MeService
 from fastapi_auth.services.oauth import OAuthService
 from fastapi_auth.services.password import PasswordService
-from fastapi_auth.services.token import TokenService
 from fastapi_auth.validator import GlobalValidator
 
 
@@ -39,54 +34,59 @@ class FastAPIAuth:
     def __init__(
         self,
         app: FastAPI,
-        cache: AbstractCacheClient,
+        get_repo,
         jwt_backend: AbstractJWTBackend,
-        access_token_expiration: int,
+        token_params: TokenParams,
         transport: AbstractTransport,
         authorization: AbstractAuthorization,
-        anonim_model: Type[Anonim] = Anonim,
     ) -> None:
-        self.repo = Repo(
-            None,  # type: ignore
-            cache,
-            access_token_expiration,
-            0,
-        )
-        self._jwt = JWT(jwt_backend, access_token_expiration, 0)
+        self.get_repo = get_repo
+        self._jwt = JWT(jwt_backend, token_params)
         self._transport = transport
         self._authorization = authorization
-
-        self._anonim_model = anonim_model
+        self._token_params = token_params
 
         app.state._fastapi_auth = self
 
-    async def get_user(self, request: Request) -> BaseUser:
+    async def get_user(self, request: Request) -> Optional[User]:
         try:
             token = self._transport.get_access_token(request)
             payload = self._jwt.decode_token(token)
             user = User(**payload)
-            await self._authorization.authorize(self.repo, user, "access")
+            repo = self.get_repo(request)
+            await self._authorization.authorize(
+                repo,
+                user,
+                self._token_params.access_token_type,
+            )
             return user
         except (TokenDecodingError, AuthorizationError):
-            return Anonim()
+            return None
 
-    async def get_authenticated_user(self, request: Request) -> BaseUser:
+    async def get_authenticated_user(self, request: Request) -> User:
         user = await self.get_user(request)
-        if user.is_authenticated():
+        if user is not None:
             return user
 
         raise HTTPException(401)
 
     async def admin_required(self, request: Request) -> None:
         user = await self.get_user(request)
-        if user.is_authenticated() and user.is_admin():
+        if user is not None and user.is_admin():
             return
 
         raise HTTPException(403)
 
     async def role_required(self, request: Request, role: str) -> None:
         user = await self.get_user(request)
-        if user.is_authenticated() and user.has_role(role):
+        if user is not None and user.has_role(role):
+            return
+
+        raise HTTPException(403)
+
+    async def permission_required(self, request: Request, permission: str) -> None:
+        user = await self.get_user(request)
+        if user is not None and user.has_permission(permission):
             return
 
         raise HTTPException(403)
@@ -96,12 +96,9 @@ class FastAPIAuthApp(FastAPIAuth):
     def __init__(
         self,
         app: FastAPI,
-        db: AbstractDatabaseClient,
-        cache: AbstractCacheClient,
+        get_repo,
         jwt_backend: AbstractJWTBackend,
         token_params: TokenParams,
-        access_token_expiration: int,
-        refresh_token_expiration: int,
         transport: AbstractTransport,
         authorization: AbstractAuthorization,
         oauth_providers: Iterable[AbstractOAuthProvider],
@@ -119,17 +116,8 @@ class FastAPIAuthApp(FastAPIAuth):
         debug: bool = False,
     ) -> None:
         self._app = app
-        self.repo = Repo(
-            db,
-            cache,
-            access_token_expiration,
-            refresh_token_expiration,
-        )
-        self._jwt = JWT(
-            jwt_backend,
-            access_token_expiration,
-            refresh_token_expiration,
-        )
+        self.get_repo = get_repo
+        self._jwt = JWT(jwt_backend, token_params)
         self._token_params = token_params
         self._transport = transport
         self._oauth_providers = oauth_providers
@@ -168,7 +156,6 @@ class FastAPIAuthApp(FastAPIAuth):
 
     def get_auth_router(self) -> APIRouter:
         service = AuthService(
-            repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             authorization=self._authorization,
@@ -178,15 +165,16 @@ class FastAPIAuthApp(FastAPIAuth):
             debug=self._debug,
         )
         return get_auth_router(
+            self.get_repo,
             service,
             self._jwt,
             self._transport,
+            self._token_params,
             self._on_create_action,
         )
 
     def get_password_router(self) -> APIRouter:
         service = PasswordService(
-            repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             password_backend=self._password_backend,
@@ -194,11 +182,10 @@ class FastAPIAuthApp(FastAPIAuth):
             captcha_client=self._captcha_client,
             debug=self._debug,
         )
-        return get_password_router(service)
+        return get_password_router(self.get_repo, service)
 
     def get_oauth_router(self) -> APIRouter:
         service = OAuthService(
-            repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             oauth_providers=self._oauth_providers,
@@ -206,25 +193,26 @@ class FastAPIAuthApp(FastAPIAuth):
             path_prefix=self._oauth_callback_prefix,
         )
         return get_oauth_router(
+            self.get_repo,
             service,
             self._jwt,
+            self._token_params,
             self._transport,
             self._oauth_message_path,
             self._on_create_action,
         )
 
     def get_admin_router(self) -> APIRouter:
-        service = AdminService(self.repo)
-        return get_admin_router(service)
+        return get_admin_router(self.get_repo)
 
     def get_me_router(self) -> APIRouter:
         service = MeService(
-            repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             email_client=self._email_client,
         )
         return get_me_router(
+            self.get_repo,
             service,
             self._on_update_action,
             self._debug,
@@ -232,17 +220,17 @@ class FastAPIAuthApp(FastAPIAuth):
 
     def get_email_router(self) -> APIRouter:
         service = EmailService(
-            repo=self.repo,
             jwt=self._jwt,
             token_params=self._token_params,
             email_client=self._email_client,
         )
-        return get_email_router(service)
+        return get_email_router(self.get_repo, service)
 
     def get_token_router(self) -> APIRouter:
-        service = TokenService(self.repo, self._authorization)
         return get_token_router(
-            service,
+            self.get_repo,
+            self._authorization,
             self._jwt,
+            self._token_params,
             self._transport,
         )

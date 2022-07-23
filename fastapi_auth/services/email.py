@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi_auth.backend.abc.email import AbstractEmailClient
 from fastapi_auth.errors import (
     EmailAlreadyVerifiedError,
@@ -12,18 +10,17 @@ from fastapi_auth.jwt import JWT, TokenParams
 from fastapi_auth.models.email import ChangeEmailRequest, EmailActionTokenPayload
 from fastapi_auth.models.user import User, UserUpdate
 from fastapi_auth.repo import Repo
-from fastapi_auth.types import UID
 
 
 async def request_verification(
     jwt: JWT,
     tp: TokenParams,
     email_client: AbstractEmailClient,
-    id: UID,
+    id: int,
     email: str,
 ) -> None:
     payload = {
-        "id": str(id) if isinstance(id, UUID) else id,
+        "id": id,
         "email": email,
     }
     token = jwt.create_token(
@@ -37,23 +34,21 @@ async def request_verification(
 class EmailService:
     def __init__(
         self,
-        repo: Repo,
         jwt: JWT,
         token_params: TokenParams,
         email_client: AbstractEmailClient,
     ) -> None:
-        self._repo = repo
         self._jwt = jwt
         self._tp = token_params
         self._email_client = email_client
 
-    async def request_verification(self, user: User) -> None:
-        item = await self._repo.get(user.id)
+    async def request_verification(self, repo: Repo, user: User) -> None:
+        item = await repo.get(user.id)
 
         if item.verified:
             raise EmailAlreadyVerifiedError
 
-        if await self._repo.rate_limit_reached(
+        if await repo.rate_limit_reached(
             self._tp.verify_email_token_type,
             2,
             60 * 60,
@@ -70,14 +65,14 @@ class EmailService:
             item.email,
         )
 
-    async def verify(self, token: str) -> None:
+    async def verify(self, repo: Repo, token: str) -> None:
         payload = self._jwt.decode_token(token)
         data = EmailActionTokenPayload(**payload)
 
         if data.type != self._tp.verify_email_token_type:
             raise WrongTokenTypeError
 
-        user = await self._repo.get(data.id)
+        user = await repo.get(data.id)
 
         if user.verified:
             raise EmailAlreadyVerifiedError
@@ -85,20 +80,23 @@ class EmailService:
         if user.email != data.email:
             raise EmailMismatchError
 
-        await self._repo.use_token(token, ex=self._tp.verify_email_token_expiration)
+        await repo.use_token(token, ex=self._tp.verify_email_token_expiration)
 
         update_obj = UserUpdate(verified=True)
-        await self._repo.update(user.id, update_obj.to_update_dict())
+        await repo.update(user.id, update_obj.to_update_dict())
 
     async def request_email_change(
-        self, data_in: ChangeEmailRequest, user: User
+        self,
+        repo: Repo,
+        data_in: ChangeEmailRequest,
+        user: User,
     ) -> None:
-        item = await self._repo.get(user.id)
+        item = await repo.get(user.id)
 
         if data_in.email == item.email:
             raise SameEmailError
 
-        if await self._repo.rate_limit_reached(
+        if await repo.rate_limit_reached(
             "request_email_change",
             2,
             60 * 30,
@@ -108,7 +106,7 @@ class EmailService:
             raise TimeoutError
 
         payload = {
-            "id": str(user.id) if isinstance(id, UUID) else user.id,
+            "id": user.id,
             "email": data_in.email,
         }
         token = self._jwt.create_token(
@@ -118,14 +116,14 @@ class EmailService:
         )
         await self._email_client.check_old_email(item.email, token)
 
-    async def verify_old(self, token: str) -> None:
+    async def verify_old(self, repo: Repo, token: str) -> None:
         payload = self._jwt.decode_token(token)
         obj = EmailActionTokenPayload(**payload)
 
         if obj.type != self._tp.check_old_email_token_type:  # pragma: no cover
             raise WrongTokenTypeError
 
-        await self._repo.use_token(token, self._tp.change_email_token_expiration)
+        await repo.use_token(token, self._tp.change_email_token_expiration)
 
         token = self._jwt.create_token(
             self._tp.check_new_email_token_type,
@@ -135,14 +133,14 @@ class EmailService:
 
         await self._email_client.check_new_email(obj.email, token)
 
-    async def verify_new(self, token: str) -> None:
+    async def verify_new(self, repo: Repo, token: str) -> None:
         payload = self._jwt.decode_token(token)
         obj = EmailActionTokenPayload(**payload)
 
         if obj.type != self._tp.check_new_email_token_type:  # pragma: no cover
             raise WrongTokenTypeError
 
-        await self._repo.use_token(token, self._tp.change_email_token_expiration)
+        await repo.use_token(token, self._tp.change_email_token_expiration)
 
         update_obj = UserUpdate(email=obj.email)
-        await self._repo.update(obj.id, update_obj.to_update_dict())
+        await repo.update(obj.id, update_obj.to_update_dict())

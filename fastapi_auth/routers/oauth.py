@@ -3,7 +3,7 @@ import hashlib
 import os
 from typing import Callable, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from fastapi_auth.backend.abc.transport import AbstractTransport
@@ -14,14 +14,17 @@ from fastapi_auth.errors import (
     UserNotActiveError,
     WrongTokenTypeError,
 )
-from fastapi_auth.jwt import JWT
+from fastapi_auth.jwt import JWT, TokenParams
 from fastapi_auth.oauth_messages import OAuthMessages
+from fastapi_auth.repo import Repo
 from fastapi_auth.services.oauth import OAuthService
 
 
 def get_oauth_router(
+    get_repo: Callable,
     service: OAuthService,
     jwt: JWT,
+    tp: TokenParams,
     transport: AbstractTransport,
     message_path: str,
     on_create_action: Optional[Callable],
@@ -45,7 +48,11 @@ def get_oauth_router(
         return RedirectResponse(oauth_uri)
 
     @router.get("/{provider_name}/callback", name="oauth:callback")
-    async def oauth_callback(provider_name: str, request: Request):
+    async def oauth_callback(
+        provider_name: str,
+        request: Request,
+        repo: Repo = Depends(get_repo),
+    ):
         provider = service.get_provider(provider_name)
         if provider is None:
             return RedirectResponse(
@@ -67,9 +74,9 @@ def get_oauth_router(
         add_token = request.cookies.get("add_oauth_account")
         if add_token is not None:
             try:
-                await service.add_oauth_account(add_token, provider_name, sid)
+                await service.add_oauth_account(repo, add_token, provider_name, sid)
                 response = RedirectResponse(
-                    f"/{message_path}?message=oauth_account_was_added_successfully"
+                    f"/{message_path}?message={OAuthMessages.OAUTH_ACCOUNT_WAS_ADDED_SUCCESSFULLY}"
                 )
             except WrongTokenTypeError:
                 response = RedirectResponse(
@@ -87,9 +94,9 @@ def get_oauth_router(
             return RedirectResponse(f"{message_path}?message={OAuthMessages.NO_EMAIL}")
 
         try:
-            user_db = await service.get_user(provider, sid)
+            user_db = await service.get_user(repo, provider, sid)
             if user_db is None:
-                user_db = await service.create_user(provider, sid, email)
+                user_db = await service.create_user(repo, provider, sid, email)
 
                 if on_create_action is not None:  # pragma: no cover
                     if asyncio.iscoroutinefunction(on_create_action):
@@ -103,8 +110,8 @@ def get_oauth_router(
                 response,
                 access_token,
                 refresh_token,
-                jwt.access_token_expiration,
-                jwt.refresh_token_expiration,
+                tp.access_token_expiration,
+                tp.refresh_token_expiration,
             )
 
         except UserNotActiveError:

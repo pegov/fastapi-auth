@@ -16,10 +16,12 @@ from fastapi_auth.errors import (
 )
 from fastapi_auth.models.me import ChangeUsernameRequest, MeResponse
 from fastapi_auth.models.user import User
+from fastapi_auth.repo import Repo
 from fastapi_auth.services.me import MeService
 
 
 def get_me_router(
+    get_repo: Callable,
     service: MeService,
     on_update_action: Optional[Callable],
     debug: bool,
@@ -34,19 +36,21 @@ def get_me_router(
     )
     async def me_get(
         *,
+        repo: Repo = Depends(get_repo),
         user: User = Depends(get_authenticated_user),
     ):
-        return await service.get(user)
+        return await service.get(repo, user)
 
     @router.post("/me/change_username", name="me:change_username")
     async def me_change_username(
         *,
         data_in: ChangeUsernameRequest,
         request: Request,
+        repo: Repo = Depends(get_repo),
         user: User = Depends(get_authenticated_user),
     ):
         try:
-            user, update_obj = await service.change_username(data_in, user)
+            user, update_obj = await service.change_username(repo, data_in, user)
 
             if on_update_action is not None:  # pragma: no cover
                 if asyncio.iscoroutinefunction(on_update_action):
@@ -63,10 +67,11 @@ def get_me_router(
     async def me_add_oauth(
         provider_name: str,
         response: Response,
+        repo: Repo = Depends(get_repo),
         user: User = Depends(get_authenticated_user),
     ):
         try:
-            token = await service.add_oauth_account(provider_name, user)
+            token = await service.add_oauth_account(repo, provider_name, user)
         except OAuthAccountAlreadyExistsError:
             raise HTTPException(400, detail=Detail.OAUTH_ACCOUNT_ALREADY_EXISTS)
         response.set_cookie(
@@ -81,19 +86,23 @@ def get_me_router(
         "/me/oauth/request_account_removal", name="me:request_oauth_account_removal"
     )
     async def me_request_account_removal(
+        repo: Repo = Depends(get_repo),
         user: User = Depends(get_authenticated_user),
     ):
         try:
-            await service.request_oauth_account_removal(user)
+            await service.request_oauth_account_removal(repo, user)
         except OAuthAccountNotSetError:
             raise HTTPException(400, detail=Detail.OAUTH_ACCOUNT_NOT_SET)
         except PasswordNotSetError:
             raise HTTPException(400, detail=Detail.PASSWORD_NOT_SET)
 
     @router.post("/me/oauth/remove_account/{token}", name="me:remove_oauth_account")
-    async def me_remove_account(token: str):
+    async def me_remove_account(
+        token: str,
+        repo: Repo = Depends(get_repo),
+    ):
         try:
-            await service.remove_oauth_account(token)
+            await service.remove_oauth_account(repo, token)
         except WrongTokenTypeError:
             raise HTTPException(400, detail=Detail.WRONG_TOKEN_TYPE)
         except TokenAlreadyUsedError:

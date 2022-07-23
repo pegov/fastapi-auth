@@ -1,11 +1,9 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from uuid import UUID
 
 from pydantic import BaseModel, validator
 
 from fastapi_auth.models.common import DefaultModel
-from fastapi_auth.types import UID
 
 
 def set_created_at(v):
@@ -23,33 +21,35 @@ def set_last_login(v, values):
 
 
 class ToPayload(BaseModel):
-    id: UID
+    id: int
     username: str
     roles: List[str]
+    permissions: List[str]
 
     def payload(self) -> dict:
         return {
-            "id": str(self.id) if isinstance(self.id, UUID) else self.id,
+            "id": self.id,
             "username": self.username,
             "roles": self.roles,
+            "permissions": self.permissions,
         }
 
 
-class OAuth(DefaultModel):
+class OAuthDB(DefaultModel):
+    user_id: int
     provider: str
     sid: str
 
 
 class UserDB(DefaultModel, ToPayload):
-    id: UID
+    id: int
 
     email: str
     username: str
     password: Optional[str]
 
     roles: List[str]
-
-    oauth: Optional[OAuth]
+    permissions: List[str]
 
     active: bool
     verified: bool
@@ -57,15 +57,13 @@ class UserDB(DefaultModel, ToPayload):
     created_at: datetime
     last_login: datetime
 
+    oauth: Optional[OAuthDB]
+
 
 class UserCreate(DefaultModel):
     email: str
     username: str
     password: Optional[str] = None
-
-    roles: List[str] = []
-
-    oauth: Optional[OAuth] = None
 
     active: bool = True
     verified: bool = False
@@ -81,46 +79,11 @@ class UserCreate(DefaultModel):
     )
 
 
-class BaseUser:
-    id: UID
+class User(ToPayload):
+    id: int
     username: str
     roles: List[str]
-
-    iat: int
-    exp: int
-    type: str
-
-    def is_authenticated(self) -> bool:
-        raise NotImplementedError
-
-    def has_role(self, role: str) -> bool:
-        raise NotImplementedError
-
-    def is_admin(self) -> bool:
-        raise NotImplementedError
-
-    def payload(self) -> dict:
-        raise NotImplementedError
-
-
-class Anonim(BaseUser):
-    def is_authenticated(self) -> bool:
-        return False
-
-    def has_role(self, role: str) -> bool:
-        return False
-
-    def is_admin(self) -> bool:
-        return False
-
-    def payload(self) -> dict:
-        return {}
-
-
-class User(ToPayload, BaseUser):
-    id: UID
-    username: str
-    roles: List[str]
+    permissions: Optional[List[str]] = None  # for backward compatability
 
     iat: int
     exp: int
@@ -131,6 +94,9 @@ class User(ToPayload, BaseUser):
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
+
+    def has_permission(self, permission: str) -> bool:
+        return permission in self.permissions
 
     def is_admin(self) -> bool:
         return self.has_role("admin")
@@ -143,8 +109,6 @@ class UserUpdate(BaseModel):
 
     roles: Optional[List[str]] = None
 
-    oauth: Optional[OAuth] = None
-
     active: Optional[bool] = None
     verified: Optional[bool] = None
 
@@ -156,5 +120,8 @@ class UserUpdate(BaseModel):
             by_alias=True,
         )
 
-    def remove_oauth_account(self) -> dict:
-        return {"oauth": None}
+
+class RoleDB(BaseModel):
+    id: int
+    name: str
+    permissions: List[str]

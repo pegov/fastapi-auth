@@ -2,18 +2,17 @@ from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
-from fastapi_auth.models.user import OAuth
-from fastapi_auth.types import UID
+from fastapi_auth.models.user import OAuthDB
 from fastapi_auth.validator import GlobalValidator
 
 
 class MeResponse(BaseModel):
-    id: UID
+    id: int
     email: str
     username: str
     roles: List[str]
 
-    oauth: Optional[OAuth]
+    oauth: Optional[OAuthDB]
 
     verified: bool
 

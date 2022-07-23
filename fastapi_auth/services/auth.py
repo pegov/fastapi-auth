@@ -26,7 +26,6 @@ from fastapi_auth.services.email import request_verification
 class AuthService:
     def __init__(
         self,
-        repo: Repo,
         jwt: JWT,
         token_params: TokenParams,
         authorization: AbstractAuthorization,
@@ -35,7 +34,6 @@ class AuthService:
         captcha_client: Optional[AbstractCaptchaClient],
         debug: bool,
     ):
-        self._repo = repo
         self._jwt = jwt
         self._tp = token_params
         self._authorization = authorization
@@ -46,6 +44,7 @@ class AuthService:
 
     async def register(
         self,
+        repo: Repo,
         data_in: RegisterRequest,
         ip: str,
     ) -> UserDB:
@@ -57,25 +56,24 @@ class AuthService:
             raise InvalidCaptchaError
 
         try:
-            await self._repo.get_by_email(data_in.email)
+            await repo.get_by_email(data_in.email)
             raise EmailAlreadyExistsError
         except UserNotFoundError:
             pass
 
         try:
-            await self._repo.get_by_username(data_in.username)
+            await repo.get_by_username(data_in.username)
             raise UsernameAlreadyExistsError
         except UserNotFoundError:
             pass
 
-        new_user = UserCreate(
+        user_create = UserCreate(
             **data_in.dict(),
             password=self._password_backend.hash(data_in.password1),
         )
 
-        id = await self._repo.create(new_user.dict(exclude_none=True))
-
-        user = UserDB(**new_user.dict(), id=id)
+        id = await repo.create(user_create)
+        user = await repo.get(id)
 
         if self._email_client is not None:
             try:
@@ -93,13 +91,14 @@ class AuthService:
 
     async def login(
         self,
+        repo: Repo,
         data_in: LoginRequest,
         ip: str,
     ) -> UserDB:
-        if await self._repo.rate_limit_reached("login", 30, 60, 120, ip):
+        if await repo.rate_limit_reached("login", 30, 60, 120, ip):
             raise TimeoutError
 
-        user = await self._repo.get_by_login(data_in.login)
+        user = await repo.get_by_login(data_in.login)
         if user is None:
             raise UserNotFoundError
 
@@ -116,7 +115,7 @@ class AuthService:
             last_login=datetime.now(timezone.utc),
         )
         asyncio.create_task(
-            self._repo.update(
+            repo.update(
                 user.id,
                 last_login_update_obj.to_update_dict(),
             )
