@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 
@@ -266,7 +265,7 @@ class Repo:
 
         cur = await self.cache.incr(f"{self.rate_key_prefix}:{type}:{id}")
         if cur == 1:
-            asyncio.create_task(self.cache.expire(type, interval))
+            await self.cache.expire(type, interval)
 
         if cur >= rate:
             await self.cache.set(timeout_key, 1, ex=timeout)

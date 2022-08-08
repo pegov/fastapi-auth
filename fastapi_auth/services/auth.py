@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -114,11 +113,9 @@ class AuthService:
         last_login_update_obj = UserUpdate(
             last_login=datetime.now(timezone.utc),
         )
-        asyncio.create_task(
-            repo.update(
-                user.id,
-                last_login_update_obj.to_update_dict(),
-            )
+        await repo.update(
+            user.id,
+            last_login_update_obj.to_update_dict(),
         )
 
         return user

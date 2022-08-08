@@ -1,4 +1,3 @@
-import asyncio
 import random
 from datetime import datetime, timezone
 from typing import Iterable, Optional
@@ -59,11 +58,9 @@ class OAuthService:
             raise UserNotActiveError
 
         last_login_update_obj = UserUpdate(last_login=datetime.now(timezone.utc))
-        asyncio.create_task(
-            repo.update(
-                item.id,
-                last_login_update_obj.to_update_dict(),
-            )
+        await repo.update(
+            item.id,
+            last_login_update_obj.to_update_dict(),
         )
 
         return item
