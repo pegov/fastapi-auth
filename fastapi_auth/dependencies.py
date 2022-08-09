@@ -7,7 +7,7 @@ from fastapi_auth.repo import Repo
 
 
 class GlobalDependencies:
-    get_repo: Callable
+    get_repo: Callable = None  # type: ignore
 
 
 async def get_user(
