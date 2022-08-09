@@ -6,7 +6,7 @@ from fastapi_auth.models.user import User
 
 
 class GlobalDependencies:
-    get_repo: Callable = None  # type: ignore
+    get_repo: Callable = lambda: None  # type: ignore
 
 
 async def get_user(
