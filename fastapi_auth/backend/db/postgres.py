@@ -249,7 +249,8 @@ class PostgresClient(AbstractDatabaseClient):
 
         async with self._conn.transaction():
             for key, value in obj.items():
-                value = await self._conn.execute(q.update_user_by_id, id, key, value)
+                query = q.update_user_by_id.format(key)
+                await self._conn.execute(query, id, value)
 
         return True
 

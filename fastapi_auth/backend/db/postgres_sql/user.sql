@@ -164,7 +164,7 @@ WHERE
 UPDATE
   auth_user
 SET
-  $2 = $3
+  {} = $2
 WHERE
   id = $1;
 
