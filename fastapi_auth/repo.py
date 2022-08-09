@@ -28,7 +28,7 @@ class AdminRepo:
         self.refresh_token_expiration = refresh_token_expiration
 
     async def ban(self, id: int) -> None:
-        await self.db.update_by_id(
+        await self.db.update(
             id,
             UserUpdate(active=False).to_update_dict(),
         )
@@ -39,7 +39,7 @@ class AdminRepo:
         )
 
     async def unban(self, id: int) -> None:
-        await self.db.update_by_id(
+        await self.db.update(
             id,
             UserUpdate(active=True).to_update_dict(),
         )
@@ -184,7 +184,7 @@ class Repo:
         raise UserNotFoundError
 
     async def get(self, id: int) -> UserDB:
-        user = await self.db.get_by_id(id)
+        user = await self.db.get(id)
         return self._user_or_error(user)
 
     async def get_by_email(self, email: str) -> UserDB:
@@ -212,10 +212,10 @@ class Repo:
         return await self.db.create(obj)
 
     async def update(self, id: int, obj: dict) -> None:
-        await self.db.update_by_id(id, obj)
+        await self.db.update(id, obj)
 
     async def delete(self, id: int) -> None:
-        await self.db.delete_by_id(id)
+        await self.db.delete(id)
 
     async def user_was_recently_banned(self, id: int) -> bool:
         return bool(await self.cache.get(f"{self.ban_key_prefix}:{id}"))
@@ -239,7 +239,7 @@ class Repo:
         if item is None:
             return False
 
-        await self.db.update_by_id(
+        await self.db.update(
             item.get("id"),  # type: ignore
             UserUpdate(verified=True).to_update_dict(),
         )

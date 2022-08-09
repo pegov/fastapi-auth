@@ -56,23 +56,21 @@ path = Path(__file__).parent / "postgres_sql"
 q = Q().from_dir(path)
 
 
+def _oauth_or_none(row) -> Optional[OAuthDB]:
+    if row is not None:
+        return OAuthDB(**row)
+
+    return None
+
+
 class PostgresOAuthExtension(AbstractDatabaseOAuthExtension):
     def __init__(self, conn: Connection) -> None:
         self._conn = conn
 
-    def _create_obj(self, oauth: Optional[dict]) -> Optional[OAuthDB]:
-        if oauth is not None:
-            return OAuthDB(
-                user_id=oauth.get("user_id"),  # type: ignore
-                provider=oauth.get("provider"),  # type: ignore
-                sid=oauth.get("sid"),  # type: ignore
-            )
-
-        return None
-
     async def get_by_user_id(self, user_id: int) -> Optional[OAuthDB]:
-        oauth = await self._conn.fetchrow(q.get_oauth_by_user_id, user_id)
-        return self._create_obj(oauth)
+        return _oauth_or_none(
+            await self._conn.fetchrow(q.get_oauth_by_user_id, user_id)
+        )
 
     # not in ABC
     async def get_by_provider_and_sid(
@@ -80,7 +78,9 @@ class PostgresOAuthExtension(AbstractDatabaseOAuthExtension):
         provider: str,
         sid: str,
     ) -> Optional[OAuthDB]:
-        return await self._conn.fetchrow(q.get_oauth_by_provider_and_sid, provider, sid)
+        return _oauth_or_none(
+            await self._conn.fetchrow(q.get_oauth_by_provider_and_sid, provider, sid)
+        )
 
     async def create(self, user_id: int, provider: str, sid: str) -> None:
         await self._conn.execute(
@@ -195,47 +195,55 @@ class PostgresRolesExtension(AbstractDatabaseRolesExtension):
         return [RoleDB(**role) for role in roles]
 
 
+def _user_or_none(row) -> Optional[UserDB]:
+    if row is not None:
+        row = dict(row)
+        oauth_provider = row.get("oauth_provider")
+        oauth_sid = row.get("oauth_sid")
+        if oauth_provider is not None:
+            row["oauth"] = {
+                "user_id": row.get("id"),
+                "provider": oauth_provider,
+                "sid": oauth_sid,
+            }
+        else:
+            row["oauth"] = None
+
+        return UserDB(**row)
+
+    return None
+
+
 class PostgresClient(AbstractDatabaseClient):
     def __init__(self, conn: Connection) -> None:
         self._conn = conn
         self.oauth = PostgresOAuthExtension(conn)
         self.roles = PostgresRolesExtension(conn)
 
-    def _create_obj(self, user: Optional[dict]) -> Optional[UserDB]:
-        if user is None:
-            return None
-
-        if user.get("oauth_provider") is not None:
-            oauth = OAuthDB(
-                user_id=user.get("id"),  # type: ignore
-                provider=user.get("oauth_provider"),  # type: ignore
-                sid=user.get("oauth_sid"),  # type: ignore
-            )
-        else:
-            oauth = None
-
-        return UserDB(**user, oauth=oauth)
-
-    async def get_by_id(self, id: int) -> Optional[UserDB]:
-        return await self._conn.fetchrow(q.get_user_by_id, id)  # type: ignore
+    async def get(self, id: int) -> Optional[UserDB]:
+        return _user_or_none(await self._conn.fetchrow(q.get_user_by_id, id))
 
     async def get_by_email(self, email: str) -> Optional[UserDB]:
-        return await self._conn.fetchrow(q.get_user_by_email, email)  # type: ignore
+        return _user_or_none(await self._conn.fetchrow(q.get_user_by_email, email))
 
     async def get_by_username(self, username: str) -> Optional[UserDB]:
-        return await self._conn.fetchrow(q.get_user_by_username, username)  # type: ignore
+        return _user_or_none(
+            await self._conn.fetchrow(q.get_user_by_username, username)
+        )
 
     async def get_by_provider_and_sid(
-        self, provider: str, sid: str
+        self,
+        provider: str,
+        sid: str,
     ) -> Optional[UserDB]:
-        return await self._conn.fetchrow(
-            q.get_user_by_provider_and_sid, provider, sid  # type: ignore
+        return _user_or_none(
+            await self._conn.fetchrow(q.get_user_by_provider_and_sid, provider, sid)
         )
 
     async def create(self, obj: UserCreate) -> int:
         return await self._conn.fetchval(q.create_user, *obj.dict().values())  # type: ignore
 
-    async def update_by_id(self, id: int, obj: dict) -> bool:
+    async def update(self, id: int, obj: dict) -> bool:
         if await self._conn.fetchrow(q.get_user_by_id, id) is None:
             return False
 
@@ -245,7 +253,7 @@ class PostgresClient(AbstractDatabaseClient):
 
         return True
 
-    async def delete_by_id(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         if await self._conn.fetchrow(q.get_user_by_id, id) is None:
             return False
 

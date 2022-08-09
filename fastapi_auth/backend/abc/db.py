@@ -61,7 +61,7 @@ class AbstractDatabaseClient(ABC):
     roles: AbstractDatabaseRolesExtension
 
     @abstractmethod
-    async def get_by_id(self, id: int) -> Optional[UserDB]:
+    async def get(self, id: int) -> Optional[UserDB]:
         raise NotImplementedError
 
     @abstractmethod
@@ -85,9 +85,9 @@ class AbstractDatabaseClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def update_by_id(self, id: int, obj: dict) -> bool:
+    async def update(self, id: int, obj: dict) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_by_id(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         raise NotImplementedError
