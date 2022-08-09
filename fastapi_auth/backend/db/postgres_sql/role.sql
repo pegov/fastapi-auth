@@ -2,7 +2,7 @@
 SELECT
   r.id,
   r.name,
-  array_agg(DISTINCT p.name) AS permissions
+  COALESCE(array_agg(DISTINCT p.name), ARRAY[]::text[]) AS permissions
 FROM
   auth_role r
 LEFT JOIN auth_role_permission rp
@@ -10,7 +10,7 @@ LEFT JOIN auth_role_permission rp
 LEFT JOIN auth_permission p
   ON p.id = rp.permission_id
 GROUP BY
-  (r.id, r.name);
+  r.id;
 
 -- name: create_role
 INSERT INTO auth_role (
@@ -30,28 +30,23 @@ WHERE
 
 -- name: get_role_and_permissions_by_name
 SELECT
-  DISTINCT r.id,
+  r.id,
   r.name,
-  ARRAY(
+  (
     SELECT
-      DISTINCT p.name
+      COALESCE(array_agg(DISTINCT p.name), ARRAY[]::text[])
     FROM
-      auth_role r
+      auth_permission p
     JOIN auth_role_permission rp
-      ON r.id = rp.role_id
-    JOIN auth_permission p
-      ON p.id = rp.permission_id
-    WHERE
-      r.name = $1
+      ON rp.role_id = r.id
   ) AS permissions
 FROM
   auth_role r
-LEFT JOIN auth_role_permission rp
-  ON rp.role_id = r.id
-LEFT JOIN auth_permission p
-  ON p.id = rp.permission_id
 WHERE
-  r.name = $1;
+  r.name = $1
+GROUP BY
+  r.id;
+
 
 -- name: create_user_role_relation
 INSERT INTO auth_user_role (
