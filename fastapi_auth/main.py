@@ -43,7 +43,7 @@ class FastAPIAuth:
         authorization: AbstractAuthorization,
     ) -> None:
         self.get_repo = get_repo
-        GlobalDependencies.get_repo = get_repo
+        app.dependency_overrides[GlobalDependencies.get_repo] = get_repo
 
         self._jwt = JWT(jwt_backend, token_params)
         self._transport = transport
@@ -130,7 +130,7 @@ class FastAPIAuthApp(FastAPIAuth):
     ) -> None:
         self._app = app
         self.get_repo = get_repo
-        GlobalDependencies.get_repo = get_repo
+        app.dependency_overrides[GlobalDependencies.get_repo] = get_repo
 
         self._jwt = JWT(jwt_backend, token_params)
         self._token_params = token_params
