@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from fastapi_auth.dependencies import admin_required
-from fastapi_auth.errors import UserNotFoundError
 from fastapi_auth.models.admin import MassLogoutStatusResponse, RoleCreate, RoleUpdate
-from fastapi_auth.models.user import RoleDB, UserDB
+from fastapi_auth.models.user import RoleDB
 from fastapi_auth.repo import Repo
 
 
@@ -93,19 +92,6 @@ def get_admin_router(
             await repo.roles.grant(id, data_in.add)
         if data_in.remove is not None:
             await repo.roles.revoke(id, data_in.remove)
-
-    @router.get(
-        "/{id}",
-        name="admin:get_user",
-        response_model=UserDB,
-    )
-    async def admin_get_user(id: int, repo: Repo = Depends(get_repo)):
-        try:
-            user = await repo.get(id)
-            user.password = None
-            return user
-        except UserNotFoundError:
-            raise HTTPException(404)
 
     @router.post(
         "/{id}/ban",
