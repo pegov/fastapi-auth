@@ -10,9 +10,11 @@ from fastapi_auth.backend.abc.oauth import AbstractOAuthProvider
 from fastapi_auth.backend.abc.password import AbstractPasswordBackend
 from fastapi_auth.backend.abc.transport import AbstractTransport
 from fastapi_auth.backend.abc.validator import AbstractValidator
+from fastapi_auth.dependencies import GlobalDependencies
 from fastapi_auth.errors import AuthorizationError, TokenDecodingError
 from fastapi_auth.jwt import JWT, TokenParams
 from fastapi_auth.models.user import User
+from fastapi_auth.repo import Repo
 from fastapi_auth.routers import (
     get_admin_router,
     get_auth_router,
@@ -41,6 +43,8 @@ class FastAPIAuth:
         authorization: AbstractAuthorization,
     ) -> None:
         self.get_repo = get_repo
+        GlobalDependencies.get_repo = get_repo
+
         self._jwt = JWT(jwt_backend, token_params)
         self._transport = transport
         self._authorization = authorization
@@ -48,12 +52,11 @@ class FastAPIAuth:
 
         app.state._fastapi_auth = self
 
-    async def get_user(self, request: Request) -> Optional[User]:
+    async def get_user(self, request: Request, repo: Repo) -> Optional[User]:
         try:
             token = self._transport.get_access_token(request)
             payload = self._jwt.decode_token(token)
             user = User(**payload)
-            repo = self.get_repo(request)
             await self._authorization.authorize(
                 repo,
                 user,
@@ -63,29 +66,39 @@ class FastAPIAuth:
         except (TokenDecodingError, AuthorizationError):
             return None
 
-    async def get_authenticated_user(self, request: Request) -> User:
-        user = await self.get_user(request)
+    async def get_authenticated_user(self, request: Request, repo: Repo) -> User:
+        user = await self.get_user(request, repo)
         if user is not None:
             return user
 
         raise HTTPException(401)
 
-    async def admin_required(self, request: Request) -> None:
-        user = await self.get_user(request)
+    async def admin_required(self, request: Request, repo: Repo) -> None:
+        user = await self.get_user(request, repo)
         if user is not None and user.is_admin():
             return
 
         raise HTTPException(403)
 
-    async def role_required(self, request: Request, role: str) -> None:
-        user = await self.get_user(request)
+    async def role_required(
+        self,
+        request: Request,
+        repo: Repo,
+        role: str,
+    ) -> None:
+        user = await self.get_user(request, repo)
         if user is not None and user.has_role(role):
             return
 
         raise HTTPException(403)
 
-    async def permission_required(self, request: Request, permission: str) -> None:
-        user = await self.get_user(request)
+    async def permission_required(
+        self,
+        request: Request,
+        repo: Repo,
+        permission: str,
+    ) -> None:
+        user = await self.get_user(request, repo)
         if user is not None and user.has_permission(permission):
             return
 
@@ -117,6 +130,8 @@ class FastAPIAuthApp(FastAPIAuth):
     ) -> None:
         self._app = app
         self.get_repo = get_repo
+        GlobalDependencies.get_repo = get_repo
+
         self._jwt = JWT(jwt_backend, token_params)
         self._token_params = token_params
         self._transport = transport
