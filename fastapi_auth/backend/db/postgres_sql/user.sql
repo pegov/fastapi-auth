@@ -24,7 +24,7 @@ SELECT
   o.sid AS oauth_sid,
   (
     SELECT
-      COALESCE(array_agg(r.name), ARRAY[]::text[])
+      COALESCE(array_agg(DISTINCT r.name), ARRAY[]::text[])
     FROM
       auth_role r
     JOIN auth_user_role ur
@@ -61,7 +61,7 @@ SELECT
   o.sid AS oauth_sid,
   (
     SELECT
-      COALESCE(array_agg(r.name), ARRAY[]::text[])
+      COALESCE(array_agg(DISTINCT r.name), ARRAY[]::text[])
     FROM
       auth_role r
     JOIN auth_user_role ur
@@ -98,7 +98,7 @@ SELECT
   o.sid AS oauth_sid,
   (
     SELECT
-      COALESCE(array_agg(r.name), ARRAY[]::text[])
+      COALESCE(array_agg(DISTINCT r.name), ARRAY[]::text[])
     FROM
       auth_role r
     JOIN auth_user_role ur
@@ -106,7 +106,7 @@ SELECT
   ) AS roles,
   (
     SELECT
-      COALESCE(array_agg(p.name), ARRAY[]::text[])
+      COALESCE(array_agg(DISTINCT p.name), ARRAY[]::text[])
     FROM
       auth_permission p
     JOIN auth_user_role ur
@@ -135,7 +135,7 @@ SELECT
   o.sid AS oauth_sid,
   (
     SELECT
-      COALESCE(array_agg(r.name), ARRAY[]::text[])
+      COALESCE(array_agg(DISTINCT r.name), ARRAY[]::text[])
     FROM
       auth_role r
     JOIN auth_user_role ur

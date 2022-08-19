@@ -36,16 +36,15 @@ SELECT
     SELECT
       COALESCE(array_agg(DISTINCT p.name), ARRAY[]::text[])
     FROM
-      auth_permission p
-    JOIN auth_role_permission rp
-      ON rp.role_id = r.id
+      auth_role_permission rp
+    JOIN auth_permission p
+      ON p.id = rp.permission_id
+    WHERE rp.role_id = r.id
   ) AS permissions
 FROM
   auth_role r
 WHERE
-  r.name = $1
-GROUP BY
-  r.id;
+  r.name = $1;
 
 
 -- name: create_user_role_relation
