@@ -10,6 +10,7 @@ from fastapi_auth.errors import (
     EmailAlreadyExistsError,
     InvalidCaptchaError,
     InvalidPasswordError,
+    PasswordNotSetError,
     TimeoutError,
     UsernameAlreadyExistsError,
     UserNotActiveError,
@@ -94,6 +95,8 @@ def get_auth_router(
             raise HTTPException(400, detail=Detail.USER_NOT_ACTIVE)
         except InvalidPasswordError:  # pragma: no cover
             raise HTTPException(401)
+        except PasswordNotSetError:
+            raise HTTPException(401, detail=Detail.PASSWORD_NOT_SET)
         except UserNotFoundError:  # pragma: no cover
             raise HTTPException(404)
         except TimeoutError:  # pragma: no cover
