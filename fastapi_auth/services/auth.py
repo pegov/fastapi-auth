@@ -98,8 +98,6 @@ class AuthService:
             raise TimeoutError
 
         user = await repo.get_by_login(data_in.login)
-        if user is None:
-            raise UserNotFoundError
 
         if user.password is None:
             raise PasswordNotSetError
